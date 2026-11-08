@@ -184,6 +184,8 @@ for (const cartela of NUMEROS_CARTELAS) {
         const p = new Partida(titulo, cfg.jogos, [...cfg.modos], nomes);
         const fila = [...cfg.ordem];
         let visao: 'Ordem' | 'Painel' = 'Ordem';
+        // Posição do sorteio em que o aviso de BINGO apareceu (ele some depois de 3 números).
+        let aviso: number | null = null;
 
         // ---------- Configuração ----------
         await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
@@ -250,15 +252,22 @@ for (const cartela of NUMEROS_CARTELAS) {
           }
           await expect(app.feedback).toHaveText(esperado);
           if (novas > 0) {
-            await expect(app.modalVitoria).toBeVisible();
-            await expect(app.modalVitoria.locator('li')).toHaveCount(novas);
-            if (p.sorteios.length % 2 === 0) await page.keyboard.press('Escape');
-            else await page.getByRole('button', { name: 'Continuar a partida' }).click();
-            await expect(app.modalVitoria).toHaveCount(0);
+            // o aviso aparece sem bloquear: o campo continua ativo para o próximo número
+            aviso = p.sorteios.length;
+            await expect(app.avisoBingo.locator('li')).toHaveCount(novas);
+            if (metodo !== 'painel') await expect(app.input).toBeFocused();
             resumo.comemoracoes++;
-          } else {
-            await expect(app.modalVitoria).toHaveCount(0);
+            if (p.sorteios.length % 4 === 0) {
+              await page.getByRole('button', { name: 'Fechar aviso de BINGO' }).click();
+              aviso = null;
+              resumo.eventos.add('fechar aviso de BINGO');
+            } else {
+              resumo.eventos.add('seguir jogando com o aviso de BINGO aberto');
+            }
+          } else if (aviso !== null && p.sorteios.length >= aviso + 3) {
+            aviso = null;
           }
+          await expect(app.avisoBingo).toHaveCount(aviso === null ? 0 : 1);
           resumo.sorteios++;
         };
 
@@ -316,6 +325,8 @@ for (const cartela of NUMEROS_CARTELAS) {
             const ultimo = p.sorteios.pop()!;
             await page.getByRole('button', { name: 'Desfazer último número' }).click();
             await expect(app.feedback).toHaveText(`${bola(ultimo)} foi desfeito.`);
+            aviso = null;
+            await expect(app.avisoBingo).toHaveCount(0);
             await conferir();
             await sortear(ultimo, 'enter');
             resumo.eventos.add('desfazer');
@@ -329,6 +340,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             await page.getByRole('button', { name: 'Continuar partida' }).click();
             await expect(app.input).toBeVisible();
             visao = 'Ordem';
+            aviso = null;
             await conferir();
             resumo.eventos.add('sair e continuar');
           }
@@ -341,6 +353,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             p.modos.push(extra);
             await expect(page.locator('.modes-line')).toContainText(NOMES_MODOS[extra]);
             visao = 'Ordem';
+            aviso = null;
             await conferir();
             resumo.eventos.add('editar modos na partida');
           }
@@ -348,6 +361,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             await page.reload();
             await expect(app.feedback).toHaveText(`${p.sorteios.length} de 75 números sorteados.`);
             visao = 'Ordem';
+            aviso = null;
             await conferir();
             resumo.eventos.add('recarregar a página');
           }
@@ -376,6 +390,8 @@ for (const cartela of NUMEROS_CARTELAS) {
             await app.confirmar('Remover');
             p.sorteios.splice(p.sorteios.indexOf(alvo), 1);
             await expect(app.feedback).toHaveText(`${bola(alvo)} removido dos sorteados.`);
+            aviso = null;
+            await expect(app.avisoBingo).toHaveCount(0);
             await conferir();
             fila.unshift(alvo);
             resumo.eventos.add('remover número');
@@ -423,6 +439,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             await page.getByRole('button', { name: 'Reabrir partida' }).click();
             await expect(app.input).toBeVisible();
             visao = 'Ordem';
+            aviso = null;
             await sortear(fila.shift()!, 'enter');
             await conferir();
             await finalizarPelaPartida();

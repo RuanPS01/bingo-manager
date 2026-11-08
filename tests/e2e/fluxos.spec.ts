@@ -14,7 +14,6 @@ async function iniciarPartida(page: Page, cartela: string, premio = 'Bicicleta A
 async function marcar(app: BingoApp, n: number) {
   await app.digitar(String(n), 'enter');
   await expect(app.feedback).toContainText(bola(n));
-  if (await app.modalVitoria.count()) await app.page.getByRole('button', { name: 'Continuar a partida' }).click();
 }
 
 async function finalizar(app: BingoApp) {
@@ -160,8 +159,7 @@ test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga co
   for (const n of [18, 48]) await app.digitar(String(n), 'enter');
   await app.digitar('63', 'enter');
   await expect(app.feedback).toHaveText('O-63 completou 1 conquista(s)!');
-  await expect(app.modalVitoria).toContainText('Binguinho da Ana');
-  await page.getByRole('button', { name: 'Continuar a partida' }).click();
+  await expect(app.avisoBingo).toContainText('Quina: Binguinho da Ana, Binguinho');
 
   // cartela com 2 jogos de números diferentes, incluída no meio da partida
   await page.getByRole('button', { name: 'Adicionar cartela ou jogo' }).click();
@@ -224,6 +222,74 @@ test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga co
   const avulso = salvo.cards.find((c) => c.name === 'Binguinho da Ana')!;
   expect(avulso.games).toHaveLength(1);
   expect(avulso.games[0]).toMatchObject({ prizeId: null, name: 'Binguinho' });
+});
+
+test('a partida continua depois de fechar um padrão, sem precisar fechar o aviso', async ({ page }) => {
+  const app = new BingoApp(page);
+  await app.abrirInicio();
+  await iniciarPartida(page, '01065');
+  await page.getByRole('button', { name: 'Editar jogos e modos' }).click();
+  await app.painel('Modos que valem').getByRole('button', { name: 'Limpar' }).click();
+  await app.escolherModo('quina');
+  await page.locator('.action-bar').getByRole('button', { name: 'Salvar alterações' }).click();
+
+  // fecha a quina da linha do meio da 01065: 03 20 [livre] 50 68
+  for (const n of [3, 20, 50]) await marcar(app, n);
+  await expect(app.avisoBingo).toHaveCount(0);
+  await app.digitar('68', 'enter');
+  await expect(app.feedback).toHaveText('O-68 completou 1 conquista(s)!');
+  await expect(app.avisoBingo).toContainText('BINGO!');
+  await expect(app.avisoBingo).toContainText('Quina: Ruan, Bicicleta Aro 26');
+  await expect(app.avisoBingo).toContainText('A partida continua');
+  await expect(page.locator('.modal')).toHaveCount(0);
+
+  // o campo continua ativo: o próximo número entra direto
+  await expect(app.input).toBeFocused();
+  await page.keyboard.type('9');
+  await page.keyboard.press('Enter');
+  await expect(app.feedback).toHaveText('B-09 marcado em 1 jogo(s): Ruan.');
+  await expect(app.avisoBingo).toBeVisible();
+
+  // todos os padrões fechados: a partida segue aberta, com atalho para incluir outros modos
+  const fechados = page.locator('.panel-info', { hasText: 'Todos os padrões foram fechados' });
+  await expect(fechados).toBeVisible();
+  for (const n of [25, 40]) await marcar(app, n);
+  await expect(app.avisoBingo).toHaveCount(0);
+  await expect(page.locator('.draws-panel .ball-chip')).toHaveCount(7);
+
+  await marcar(app, 41);
+  await expect(page.locator('.game-card [data-mode="quina"]')).toHaveAttribute('data-done', '4');
+
+  // incluir cartela cheia depois da quina e continuar até fechar
+  await fechados.getByRole('button', { name: 'Incluir outros modos' }).click();
+  await app.escolherModo('cartela-cheia');
+  await page.locator('.action-bar').getByRole('button', { name: 'Salvar alterações' }).click();
+  await expect(fechados).toHaveCount(0);
+  await expect(page.locator('.modes-line')).toContainText('Quina, Cartela cheia');
+  for (const n of [39, 2, 30, 51, 72, 52, 69, 8, 27, 31, 59, 62, 12, 17, 38, 60]) await marcar(app, n);
+  await expect(page.locator('.achievement-list li')).toHaveCount(1);
+  await app.digitar('74', 'enter');
+  await expect(app.feedback).toHaveText('O-74 completou 1 conquista(s)!');
+  await expect(app.avisoBingo).toContainText('Cartela cheia: Ruan, Bicicleta Aro 26');
+  await expect(page.locator('.achievement-list li')).toHaveCount(2);
+  await expect(fechados).toBeVisible();
+
+  // desfazer o número que fechou o padrão tira o aviso; marcar de novo mostra outra vez
+  await page.getByRole('button', { name: 'Desfazer último número' }).click();
+  await expect(app.avisoBingo).toHaveCount(0);
+  await expect(page.locator('.achievement-list li')).toHaveCount(1);
+  await expect(fechados).toHaveCount(0);
+  await app.digitar('74', 'enter');
+  await expect(app.avisoBingo).toContainText('Cartela cheia');
+  await page.getByRole('button', { name: 'Fechar aviso de BINGO' }).click();
+  await expect(app.avisoBingo).toHaveCount(0);
+  await expect(app.input).toBeFocused();
+  await expect(fechados).toBeVisible();
+
+  // ainda dá para marcar números depois de tudo fechado e finalizar quando quiser
+  await marcar(app, 1);
+  await finalizar(app);
+  await expect(page.locator('.history-item')).toHaveCount(1);
 });
 
 test('exporta e importa backup', async ({ page }) => {
@@ -469,8 +535,8 @@ test('interface sem emojis, setas ou travessões', async ({ page }) => {
   await conferir('nova partida');
   await page.locator('.action-bar').getByRole('button', { name: 'Iniciar jogo' }).click();
   for (const n of [3, 20, 50, 68]) await app.digitar(String(n), 'enter');
+  await expect(app.avisoBingo).toBeVisible();
   await conferir('partida com aviso de BINGO');
-  await page.getByRole('button', { name: 'Continuar a partida' }).click();
   await app.verPainel('Painel');
   await conferir('painel');
 });

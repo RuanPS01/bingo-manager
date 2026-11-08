@@ -1812,43 +1812,6 @@ button.ball-chip:disabled {
   }
 }
 
-.celebrate {
-  text-align: center;
-  color: var(--blue-900);
-}
-
-.celebrate > svg {
-  color: var(--gold-500);
-}
-
-.celebrate-title {
-  margin: 4px 0 14px;
-  font-size: 2.8rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  color: var(--blue-800);
-}
-
-.celebrate ul {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 12px;
-}
-
-.celebrate li {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px;
-  border-radius: 10px;
-  background: var(--gold-100);
-  margin-bottom: 8px;
-}
-
-.celebrate li strong {
-  font-size: 1.2rem;
-}
-
 /* Editor de cartela */
 
 .form-row {
@@ -2172,4 +2135,73 @@ button.ball-chip:disabled {
 
 .chip:not(:has(.chip-round)) {
   padding-left: 10px;
+}
+
+/* Aviso de BINGO sem bloquear a partida */
+
+.win-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 6px 10px 12px;
+  border-radius: 12px;
+  background: var(--gold-400);
+  color: var(--blue-950);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  animation: rise 0.2s ease-out;
+}
+
+.win-banner > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.win-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.win-banner-text strong {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
+.win-banner-text ul {
+  list-style: none;
+  padding: 0;
+  margin: 2px 0;
+  font-size: 0.9rem;
+}
+
+.win-banner-text small {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+
+.win-banner .icon-btn {
+  color: var(--blue-950);
+}
+
+.win-banner .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.panel-info {
+  border: 2px solid var(--green-700);
+  background: var(--green-100);
+}
+
+.panel-info h2 {
+  color: var(--green-700);
+}
+
+.panel-info p {
+  margin: 0 0 12px;
 }

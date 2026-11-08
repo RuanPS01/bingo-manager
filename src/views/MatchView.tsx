@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent } from 'react';
 import { BingoGrid } from '../components/BingoGrid';
-import { Modal, useConfirm } from '../components/Dialog';
+import { useConfirm } from '../components/Dialog';
 import { CardName, cardLabel } from '../components/CardName';
 import {
+  IconClose,
   IconEdit,
   IconEraser,
   IconFlag,
@@ -51,12 +52,16 @@ type Feedback = { kind: 'hit' | 'miss' | 'error' | 'win' | 'info'; text: string 
 
 const modeName = (id: string) => getMode(id)?.name ?? id;
 
+/** Quantos números o aviso de BINGO fica na tela antes de sumir sozinho. */
+const BANNER_DRAWS = 3;
+
 export function MatchView({ match, cards, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
   const confirm = useConfirm();
   const evaluation = useMemo(() => evaluateMatch(match), [match]);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-  const [celebrate, setCelebrate] = useState<Achievement[] | null>(null);
+  // Aviso de BINGO que não bloqueia a tela: a partida segue normalmente.
+  const [banner, setBanner] = useState<{ at: number; items: Achievement[] } | null>(null);
   const [drawView, setDrawView] = useState<'order' | 'board'>('order');
   const [adding, setAdding] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +83,9 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
     [evaluation],
   );
   const targetNumbers = useMemo(() => new Set(pending.flatMap((p) => p.mode.oneAway)), [pending]);
+  const allClosed =
+    evaluation.results.length > 0 &&
+    evaluation.results.every((r) => r.modes.length > 0 && r.modes.every((m) => m.completedAt !== null));
 
   // Jogos agrupados por cartela, na ordem da partida ou dos mais perto de completar.
   const groups = useMemo(() => {
@@ -113,9 +121,12 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
 
     const hits = gamesWithNumber(match.games, ball);
     const cardNames = [...new Set(hits.map((g) => cardLabel(g.cardName, g.cardNumber)))];
+    // O aviso some sozinho depois de mais alguns números (ou com o X).
+    setBanner((b) =>
+      fresh.length > 0 ? { at: draws.length, items: fresh } : b && draws.length >= b.at + BANNER_DRAWS ? null : b,
+    );
     if (fresh.length > 0) {
       setFeedback({ kind: 'win', text: `${formatBall(ball)} completou ${fresh.length} conquista(s)!` });
-      setCelebrate(fresh);
       if (settings.sound) playWin();
       if (settings.vibration) vibrate([200, 100, 200, 100, 400]);
     } else if (hits.length > 0) {
@@ -147,6 +158,7 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
   const undo = () => {
     if (!lastBall) return;
     dispatch({ type: 'match/undo' });
+    setBanner(null);
     setFeedback({ kind: 'info', text: `${formatBall(lastBall)} foi desfeito.` });
     inputRef.current?.focus();
   };
@@ -161,6 +173,7 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
     });
     if (ok) {
       dispatch({ type: 'match/remove-ball', ball });
+      setBanner(null);
       setFeedback({ kind: 'info', text: `${formatBall(ball)} removido dos sorteados.` });
     }
   };
@@ -196,11 +209,6 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
   const reopen = () => {
     dispatch({ type: 'match/reopen', id: match.id });
     navigate('/partida');
-  };
-
-  const closeCelebrate = () => {
-    setCelebrate(null);
-    inputRef.current?.focus();
   };
 
   // Mantém o foco no campo ao tocar nos botões (evita fechar o teclado do celular).
@@ -312,10 +320,57 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
                 ? `${match.draws.length} de ${MAX_BALL} números sorteados.`
                 : 'Digite o primeiro número sorteado e toque em Marcar.')}
           </div>
+
+          {banner && !readOnly && (
+            <div className="win-banner" role="status" aria-live="assertive">
+              <IconTrophy size={26} />
+              <div className="win-banner-text">
+                <strong>BINGO!</strong>
+                <ul>
+                  {banner.items.map((a) => (
+                    <li key={`${a.gameKey}-${a.modeId}`} data-game={a.gameKey} data-mode={a.modeId}>
+                      <b>{modeName(a.modeId)}</b>: {cardLabel(a.game.cardName, a.game.cardNumber)}, {a.game.gameName}
+                    </li>
+                  ))}
+                </ul>
+                <small>A partida continua: siga marcando os números.</small>
+              </div>
+              <button
+                type="button"
+                className="icon-btn"
+                onMouseDown={keepFocus}
+                onClick={() => {
+                  setBanner(null);
+                  inputRef.current?.focus();
+                }}
+                aria-label="Fechar aviso de BINGO"
+              >
+                <IconClose size={18} />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="container stack match-main">
+        {!readOnly && allClosed && (
+          <section className="panel panel-info">
+            <header className="panel-head">
+              <div>
+                <h2>Todos os padrões foram fechados</h2>
+              </div>
+            </header>
+            <p>
+              A partida continua aberta: você pode seguir marcando os números, incluir outros modos (por exemplo,
+              cartela cheia depois da quina) ou usar Finalizar partida, no fim da página, quando quiser.
+            </p>
+            <button type="button" className="btn btn-secondary" onClick={() => navigate('/partida/editar')}>
+              <IconPlus size={18} />
+              Incluir outros modos
+            </button>
+          </section>
+        )}
+
         {evaluation.achievements.length > 0 && (
           <section className="panel panel-win">
             <header className="panel-head">
@@ -580,35 +635,6 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
           }}
         />
       )}
-
-      <Modal
-        open={celebrate !== null}
-        onClose={closeCelebrate}
-        tone="win"
-        size="sm"
-        footer={
-          <button type="button" className="btn btn-primary btn-lg btn-block" onClick={closeCelebrate} data-autofocus>
-            Continuar a partida
-          </button>
-        }
-      >
-        <div className="celebrate">
-          <IconTrophy size={44} />
-          <p className="celebrate-title">BINGO!</p>
-          <ul>
-            {celebrate?.map((a) => (
-              <li key={`${a.gameKey}-${a.modeId}`}>
-                <strong>{modeName(a.modeId)}</strong>
-                <span>
-                  {cardLabel(a.game.cardName, a.game.cardNumber)} (nº {a.game.cardNumber})
-                </span>
-                <span>{a.game.gameName}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="small muted">Confira com a organização: o resultado oficial é o do sistema do evento.</p>
-        </div>
-      </Modal>
     </div>
   );
 }
