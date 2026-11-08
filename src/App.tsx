@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ConfirmProvider } from './components/Dialog';
-import { IconBack } from './components/Icons';
+import { IconHome } from './components/Icons';
 import { MatchSetup, type SetupResult } from './components/MatchSetup';
 import { STORAGE_KEY, loadState, sanitizeState, saveState } from './lib/storage';
 import { reducer } from './state';
@@ -45,7 +45,7 @@ function cardsForEditing(cards: Card[], match: Match): Card[] {
     const card = extra.get(g.cardId) ?? {
       id: g.cardId,
       number: g.cardNumber,
-      owner: g.owner,
+      name: g.cardName,
       prizeIds: [],
       grid: g.grid,
     };
@@ -109,6 +109,7 @@ export default function App() {
       <SetupPage
         title="Novo jogo"
         onBack={() => navigate('/')}
+        backLabel="Início"
         cards={state.cards}
         submitLabel="Iniciar jogo"
         onSubmit={(r) => {
@@ -122,6 +123,7 @@ export default function App() {
       <SetupPage
         title="Editar partida"
         onBack={() => navigate('/partida')}
+        backLabel="Cancelar"
         cards={cardsForEditing(state.cards, active)}
         initial={{ name: active.name, games: active.games, modeIds: active.modeIds }}
         submitLabel="Salvar alterações"
@@ -174,19 +176,21 @@ export default function App() {
 interface SetupPageProps {
   title: string;
   onBack: () => void;
+  backLabel: string;
   cards: Card[];
   initial?: SetupResult;
   submitLabel: string;
   onSubmit: (r: SetupResult) => void;
 }
 
-function SetupPage({ title, onBack, ...rest }: SetupPageProps) {
+function SetupPage({ title, onBack, backLabel, ...rest }: SetupPageProps) {
   return (
     <div className="page setup-page">
       <header className="topbar">
         <div className="topbar-inner">
-          <button type="button" className="icon-btn icon-btn-dark" onClick={onBack} aria-label="Voltar">
-            <IconBack />
+          <button type="button" className="btn btn-on-dark btn-sm" onClick={onBack}>
+            {backLabel === 'Início' && <IconHome size={18} />}
+            {backLabel}
           </button>
           <h1>{title}</h1>
         </div>

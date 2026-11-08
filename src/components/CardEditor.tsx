@@ -19,7 +19,7 @@ const emptyCells = () => Array.from({ length: 25 }, (_, i) => (i === 12 ? String
 /** Formulário para cadastrar ou editar uma cartela. */
 export function CardEditor({ card, existingNumbers, onSave, onDelete, onClose }: CardEditorProps) {
   const [number, setNumber] = useState(card?.number ?? '');
-  const [owner, setOwner] = useState(card?.owner ?? '');
+  const [name, setName] = useState(card?.name ?? '');
   const [prizeIds, setPrizeIds] = useState<string[]>(card?.prizeIds ?? PRIZES.map((p) => p.id));
   const [cells, setCells] = useState<string[]>(card ? card.grid.map(String) : emptyCells());
   const [submitted, setSubmitted] = useState(false);
@@ -55,7 +55,7 @@ export function CardEditor({ card, existingNumbers, onSave, onDelete, onClose }:
     onSave({
       id: card?.id ?? newId('cartela'),
       number: trimmedNumber,
-      owner: owner.trim(),
+      name: name.trim(),
       prizeIds: PRIZES.map((p) => p.id).filter((id) => prizeIds.includes(id)),
       grid: values.map((v) => v ?? FREE),
     });
@@ -68,7 +68,7 @@ export function CardEditor({ card, existingNumbers, onSave, onDelete, onClose }:
     <Modal
       open
       onClose={onClose}
-      title={card ? `Editar cartela ${card.number}` : 'Nova cartela'}
+      title={card ? `Editar ${card.name || `cartela ${card.number}`}` : 'Nova cartela'}
       size="md"
       footer={
         <>
@@ -106,8 +106,8 @@ export function CardEditor({ card, existingNumbers, onSave, onDelete, onClose }:
             {submitted && numberError && <small className="field-error">{numberError}</small>}
           </label>
           <label className="field">
-            <span>Dono(a)</span>
-            <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Nome escrito na cartela" />
+            <span>Nome da cartela</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Bruna" maxLength={40} />
           </label>
         </div>
 

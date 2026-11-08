@@ -2,20 +2,24 @@ import { useMemo, useRef, useState, type Dispatch } from 'react';
 import { BingoGrid } from '../components/BingoGrid';
 import { CardEditor } from '../components/CardEditor';
 import { useConfirm } from '../components/Dialog';
+import { CardName } from '../components/CardName';
 import {
-  IconDownload,
-  IconEdit,
+  IconBall,
+  IconClock,
+  IconClose,
+  IconFile,
   IconFlag,
-  IconHistory,
-  IconPlay,
+  IconGrid,
+  IconInstall,
   IconPlus,
+  IconSave,
   IconTrophy,
-  IconUpload,
 } from '../components/Icons';
 import { EVENT, getPrize } from '../data/event';
 import { getMode } from '../data/modes';
 import { evaluateMatch, formatBall } from '../lib/bingo';
 import { exportState, readBackupFile } from '../lib/storage';
+import { usePwaInstall } from '../lib/usePwaInstall';
 import type { Action } from '../state';
 import type { AppState, Card, Match } from '../types';
 
@@ -40,6 +44,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = state.activeMatch;
+  const pwa = usePwaInstall();
 
   const finishActive = async () => {
     if (!active) return;
@@ -53,7 +58,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
   const removeCard = async (card: Card) => {
     const ok = await confirm({
-      title: `Excluir a cartela ${card.number}?`,
+      title: `Excluir a cartela ${card.name || card.number}?`,
       message: 'Partidas já iniciadas e o histórico não são afetados.',
       confirmLabel: 'Excluir',
       danger: true,
@@ -115,9 +120,40 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
               <p>Escolha as cartelas, os jogos (prêmios) e os modos que estão valendo.</p>
             </div>
             <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/nova-partida')}>
-              <IconPlay size={18} />
+              <IconBall size={20} />
               Iniciar jogo
             </button>
+          </section>
+        )}
+
+        {!state.settings.hideInstallTip && (pwa.canInstall || pwa.showIosHint) && (
+          <section className="install-card">
+            <IconInstall size={28} />
+            <div className="install-text">
+              <strong>Instale o app no celular</strong>
+              {pwa.canInstall ? (
+                <span>Abre em tela cheia e funciona mesmo sem internet no ginásio.</span>
+              ) : (
+                <span>
+                  No iPhone ou iPad, toque no botão Compartilhar do Safari e escolha Adicionar à Tela de Início.
+                </span>
+              )}
+            </div>
+            <div className="install-actions">
+              {pwa.canInstall && (
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => void pwa.install()}>
+                  Instalar
+                </button>
+              )}
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Esconder dica de instalação"
+                onClick={() => dispatch({ type: 'settings', patch: { hideInstallTip: true } })}
+              >
+                <IconClose size={18} />
+              </button>
+            </div>
           </section>
         )}
 
@@ -143,21 +179,15 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
           <div className="card-list">
             {state.cards.map((card) => (
-              <article key={card.id} className="card-item">
+              <article key={card.id} className="card-item" data-card={card.number}>
                 <div className="card-item-head">
-                  <div>
-                    <span className="card-label">Cartela</span>
-                    <strong className="card-number">{card.number}</strong>
-                  </div>
-                  {card.owner && <span className="owner owner-lg">{card.owner}</span>}
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => setEditing(card)}
-                    aria-label={`Editar cartela ${card.number}`}
-                  >
-                    <IconEdit size={18} />
-                  </button>
+                  <CardName
+                    name={card.name}
+                    number={card.number}
+                    size="lg"
+                    onRename={(name) => dispatch({ type: 'card/rename', id: card.id, name })}
+                  />
+                  <span className="card-number-tag">Nº {card.number}</span>
                 </div>
                 <div className="card-item-body">
                   <BingoGrid grid={card.grid} size="sm" label={`Números da cartela ${card.number}`} />
@@ -172,6 +202,12 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
                       );
                     })}
                   </ul>
+                </div>
+                <div className="card-item-foot">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(card)}>
+                    <IconGrid size={16} />
+                    Editar números e jogos
+                  </button>
                 </div>
               </article>
             ))}
@@ -189,13 +225,19 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
           </p>
           <div className="button-row">
             <button type="button" className="btn btn-ghost" onClick={() => exportState(state)}>
-              <IconDownload size={18} />
+              <IconSave size={18} />
               Exportar backup
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => fileRef.current?.click()}>
-              <IconUpload size={18} />
+              <IconFile size={18} />
               Importar backup
             </button>
+            {pwa.canInstall && (
+              <button type="button" className="btn btn-ghost" onClick={() => void pwa.install()}>
+                <IconInstall size={18} />
+                Instalar app
+              </button>
+            )}
             <input
               ref={fileRef}
               type="file"
@@ -238,7 +280,7 @@ function ActiveMatchCard({
 }) {
   const { achievements } = useMemo(() => evaluateMatch(match), [match]);
   const last = match.draws[match.draws.length - 1];
-  const cards = new Set(match.games.map((g) => g.cardNumber)).size;
+  const cardNames = [...new Map(match.games.map((g) => [g.cardId, g.cardName || g.cardNumber])).values()];
   return (
     <section className="active-card">
       <div className="active-card-top">
@@ -257,17 +299,21 @@ function ActiveMatchCard({
         </div>
         <div>
           <strong>{match.games.length}</strong>
-          <span>jogos em {cards} cartela(s)</span>
+          <span>jogos em {cardNames.length} cartela(s)</span>
         </div>
         <div>
           <strong>{achievements.length}</strong>
           <span>conquista(s)</span>
         </div>
       </div>
-      <p className="small">Valendo: {match.modeIds.map((id) => getMode(id)?.name ?? id).join(', ')}</p>
+      <p className="small">
+        Cartelas: {cardNames.join(', ')}
+        <br />
+        Valendo: {match.modeIds.map((id) => getMode(id)?.name ?? id).join(', ')}
+      </p>
       <div className="button-row">
         <button type="button" className="btn btn-gold btn-lg" onClick={onContinue}>
-          <IconPlay size={18} />
+          <IconBall size={20} />
           Continuar partida
         </button>
         <button type="button" className="btn btn-on-dark" onClick={onFinish}>
@@ -288,7 +334,7 @@ function HistoryList({ history, onOpen }: { history: Match[]; onOpen: (m: Match)
           <h2>Partidas finalizadas</h2>
           <span className="muted small">{history.length} no histórico</span>
         </div>
-        <IconHistory className="muted" />
+        <IconClock className="muted" />
       </header>
       <ul className="history-list">
         {history.map((m) => (

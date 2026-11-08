@@ -40,7 +40,7 @@ export const DEFAULT_CARDS: Card[] = [
   {
     id: 'cartela-01062',
     number: '01062',
-    owner: 'Bruna',
+    name: 'Bruna',
     prizeIds: [...PRIZE_IDS],
     // prettier-ignore
     grid: [
@@ -54,7 +54,7 @@ export const DEFAULT_CARDS: Card[] = [
   {
     id: 'cartela-01064',
     number: '01064',
-    owner: 'Kátia',
+    name: 'Kátia',
     prizeIds: [...PRIZE_IDS],
     // prettier-ignore
     grid: [
@@ -68,7 +68,7 @@ export const DEFAULT_CARDS: Card[] = [
   {
     id: 'cartela-01065',
     number: '01065',
-    owner: 'Ruan',
+    name: 'Ruan',
     prizeIds: [...PRIZE_IDS],
     // prettier-ignore
     grid: [

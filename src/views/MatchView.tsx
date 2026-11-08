@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent } from 'react';
 import { BingoGrid } from '../components/BingoGrid';
 import { Modal, useConfirm } from '../components/Dialog';
+import { CardName, cardLabel } from '../components/CardName';
 import {
-  IconBack,
   IconEdit,
+  IconEraser,
   IconFlag,
   IconGrid,
-  IconHistory,
+  IconHome,
+  IconList,
   IconSound,
   IconSun,
   IconTrash,
   IconTrophy,
-  IconUndo,
 } from '../components/Icons';
 import { getPrize } from '../data/event';
 import { getMode } from '../data/modes';
@@ -73,9 +74,23 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
   );
   const targetNumbers = useMemo(() => new Set(pending.flatMap((p) => p.mode.oneAway)), [pending]);
 
-  const sortedResults = useMemo(() => {
-    if (!settings.sortByProgress) return evaluation.results;
-    return [...evaluation.results].sort((a, b) => a.closest - b.closest || b.marked.size - a.marked.size);
+  // Jogos agrupados por cartela, na ordem da partida ou dos mais perto de completar.
+  const groups = useMemo(() => {
+    const byCard = new Map<string, GameResult[]>();
+    for (const r of evaluation.results) {
+      const list = byCard.get(r.game.cardId) ?? [];
+      list.push(r);
+      byCard.set(r.game.cardId, list);
+    }
+    const list = [...byCard.entries()].map(([cardId, results]) => ({
+      cardId,
+      first: results[0].game,
+      results: settings.sortByProgress
+        ? [...results].sort((a, b) => a.closest - b.closest || b.marked.size - a.marked.size)
+        : results,
+      closest: Math.min(...results.map((r) => r.closest)),
+    }));
+    return settings.sortByProgress ? list.sort((a, b) => a.closest - b.closest) : list;
   }, [evaluation, settings.sortByProgress]);
 
   const drawBall = (ball: number) => {
@@ -92,7 +107,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
     dispatch({ type: 'match/draw', ball });
 
     const hits = gamesWithNumber(match.games, ball);
-    const cardNumbers = [...new Set(hits.map((g) => g.cardNumber))];
+    const cardNames = [...new Set(hits.map((g) => cardLabel(g.cardName, g.cardNumber)))];
     if (fresh.length > 0) {
       setFeedback({ kind: 'win', text: `${formatBall(ball)} completou ${fresh.length} conquista(s)!` });
       setCelebrate(fresh);
@@ -101,7 +116,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
     } else if (hits.length > 0) {
       setFeedback({
         kind: 'hit',
-        text: `${formatBall(ball)} marcado em ${hits.length} jogo(s): cartela ${cardNumbers.join(', ')}.`,
+        text: `${formatBall(ball)} marcado em ${hits.length} jogo(s): ${cardNames.join(', ')}.`,
       });
       if (settings.sound) playMark();
       if (settings.vibration) vibrate(60);
@@ -195,9 +210,10 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
               type="button"
               className="icon-btn icon-btn-dark"
               onClick={() => navigate('/')}
-              aria-label="Voltar ao início"
+              aria-label="Ir para o início"
+              title="Início"
             >
-              <IconBack />
+              <IconHome />
             </button>
             <div className="match-title">
               <small>{readOnly ? 'Partida finalizada' : 'Partida em andamento'}</small>
@@ -280,7 +296,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                 aria-label="Desfazer último número"
                 title="Desfazer último número"
               >
-                <IconUndo />
+                <IconEraser />
               </button>
             </form>
           )}
@@ -307,11 +323,17 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
             </header>
             <ol className="achievement-list">
               {evaluation.achievements.map((a) => (
-                <li key={`${a.gameKey}-${a.modeId}`}>
+                <li
+                  key={`${a.gameKey}-${a.modeId}`}
+                  data-game={a.gameKey}
+                  data-mode={a.modeId}
+                  data-at={a.completedAt}
+                  data-ball={a.ball}
+                >
                   <span className="achievement-mode">{modeName(a.modeId)}</span>
                   <span className="achievement-detail">
-                    Cartela {a.game.cardNumber}
-                    {a.game.owner ? ` (${a.game.owner})` : ''}, {getPrize(a.game.prizeId).name}
+                    {cardLabel(a.game.cardName, a.game.cardNumber)} (nº {a.game.cardNumber}),{' '}
+                    {getPrize(a.game.prizeId).name}
                   </span>
                   <span className="achievement-when">
                     {a.completedAt}º número, {formatBall(a.ball)}
@@ -334,7 +356,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
               {[...targetNumbers]
                 .sort((a, b) => a - b)
                 .map((n) => (
-                  <span key={n} className="ball-chip ball-chip-target">
+                  <span key={n} className="ball-chip ball-chip-target" data-ball={n}>
                     {formatBall(n)}
                   </span>
                 ))}
@@ -344,7 +366,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                 <li key={`${result.game.key}-${mode.modeId}`}>
                   <strong>{modeName(mode.modeId)}</strong>
                   <span>
-                    Cartela {result.game.cardNumber}, {getPrize(result.game.prizeId).name}
+                    {cardLabel(result.game.cardName, result.game.cardNumber)}, {getPrize(result.game.prizeId).name}
                   </span>
                   <span className="pending-numbers">{mode.oneAway.map(formatBall).join(', ')}</span>
                 </li>
@@ -353,7 +375,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
           </section>
         )}
 
-        <section className="panel">
+        <section className="panel draws-panel">
           <header className="panel-head">
             <div>
               <h2>Números sorteados</h2>
@@ -368,7 +390,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                 aria-pressed={drawView === 'order'}
                 onClick={() => setDrawView('order')}
               >
-                <IconHistory size={16} />
+                <IconList size={16} />
                 Ordem
               </button>
               <button
@@ -396,6 +418,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                       className={`ball-chip ${myNumbers.has(n) ? 'ball-chip-hit' : ''} ${i === 0 ? 'ball-chip-last' : ''}`}
                       onClick={() => removeBall(n)}
                       disabled={readOnly}
+                      data-ball={n}
                       title={readOnly ? undefined : 'Toque para remover'}
                     >
                       <small>{match.draws.length - i}º</small>
@@ -431,6 +454,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                           className={classes.join(' ')}
                           disabled={readOnly}
                           onClick={() => (drawn ? removeBall(n) : drawBall(n))}
+                          data-ball={n}
                           aria-label={`${formatBall(n)}${drawn ? ', sorteado' : ''}`}
                         >
                           {n}
@@ -475,9 +499,26 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
             </div>
           </div>
           <p className="muted small modes-line">Valendo: {match.modeIds.map(modeName).join(', ')}</p>
-          <div className="games-grid">
-            {sortedResults.map((r) => (
-              <GameCard key={r.game.key} result={r} lastBall={lastBall} draws={match.draws} />
+          <div className="card-groups">
+            {groups.map((group) => (
+              <section key={group.cardId} className="card-group" data-card={group.first.cardNumber}>
+                <header className="card-group-head">
+                  <CardName
+                    name={group.first.cardName}
+                    number={group.first.cardNumber}
+                    onRename={
+                      readOnly ? undefined : (name) => dispatch({ type: 'card/rename', id: group.cardId, name })
+                    }
+                  />
+                  <span className="card-number-tag">Nº {group.first.cardNumber}</span>
+                  <span className="muted small">{group.results.length} jogo(s)</span>
+                </header>
+                <div className="games-grid">
+                  {group.results.map((r) => (
+                    <GameCard key={r.game.key} result={r} lastBall={lastBall} draws={match.draws} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         </section>
@@ -529,8 +570,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
               <li key={`${a.gameKey}-${a.modeId}`}>
                 <strong>{modeName(a.modeId)}</strong>
                 <span>
-                  Cartela {a.game.cardNumber}
-                  {a.game.owner ? ` (${a.game.owner})` : ''}
+                  {cardLabel(a.game.cardName, a.game.cardNumber)} (nº {a.game.cardNumber})
                 </span>
                 <span>{getPrize(a.game.prizeId).name}</span>
               </li>
@@ -553,16 +593,17 @@ function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: n
   const status = won.length > 0 ? 'is-won' : result.closest === 1 ? 'is-close' : '';
 
   return (
-    <article className={`game-card ${status}`}>
+    <article className={`game-card ${status}`} data-game={game.key} data-marked={marked.size}>
       <header className="game-card-head">
-        <div className="game-card-title">
-          <strong>Cartela {game.cardNumber}</strong>
-          {game.owner && <span className="owner">{game.owner}</span>}
-        </div>
         <span className="prize-tag">
           <span className="chip-round">{prize.round}</span>
           {prize.name}
         </span>
+        {won.length > 0 && (
+          <span className="badge badge-gold">
+            <IconTrophy size={14} /> BINGO
+          </span>
+        )}
       </header>
       <BingoGrid
         grid={game.grid}
@@ -574,17 +615,18 @@ function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: n
       />
       <div className="game-card-count">
         {marked.size} de {totalNumbers} números marcados
-        {won.length > 0 && (
-          <span className="badge badge-gold">
-            <IconTrophy size={14} /> {won.length}
-          </span>
-        )}
       </div>
       <ul className="mode-progress">
         {modes.map((m) => {
           const pct = m.bestTotal ? Math.round((m.bestMarked / m.bestTotal) * 100) : 0;
           return (
-            <li key={m.modeId} className={m.completedAt !== null ? 'is-done' : m.needed === 1 ? 'is-close' : ''}>
+            <li
+              key={m.modeId}
+              className={m.completedAt !== null ? 'is-done' : m.needed === 1 ? 'is-close' : ''}
+              data-mode={m.modeId}
+              data-done={m.completedAt ?? ''}
+              data-needed={m.needed}
+            >
               <span className="mode-progress-name">{modeName(m.modeId)}</span>
               {m.completedAt !== null ? (
                 <span className="mode-progress-done">

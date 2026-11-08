@@ -17,25 +17,6 @@ function base({ size = 20, ...rest }: IconProps) {
   };
 }
 
-export const IconBack = (p: IconProps) => (
-  <svg {...base(p)}>
-    <path d="M15 18l-6-6 6-6" />
-  </svg>
-);
-
-export const IconPlay = (p: IconProps) => (
-  <svg {...base(p)}>
-    <path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-export const IconUndo = (p: IconProps) => (
-  <svg {...base(p)}>
-    <path d="M9 14L4 9l5-5" />
-    <path d="M4 9h10.5a5.5 5.5 0 010 11H11" />
-  </svg>
-);
-
 export const IconEdit = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M12 20h9" />
@@ -101,18 +82,6 @@ export const IconSun = (p: IconProps) => (
   </svg>
 );
 
-export const IconDownload = (p: IconProps) => (
-  <svg {...base(p)}>
-    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-  </svg>
-);
-
-export const IconUpload = (p: IconProps) => (
-  <svg {...base(p)}>
-    <path d="M12 20V9M7 14l5-5 5 5M5 4h14" />
-  </svg>
-);
-
 export const IconStar = (p: IconProps) => (
   <svg {...base(p)}>
     <path
@@ -137,10 +106,72 @@ export const IconMore = (p: IconProps) => (
   </svg>
 );
 
-export const IconHistory = (p: IconProps) => (
+/** Casa: volta para a tela inicial. */
+export const IconHome = (p: IconProps) => (
   <svg {...base(p)}>
-    <path d="M3 12a9 9 0 103-6.7L3 8" />
-    <path d="M3 3v5h5" />
+    <path d="M3 11l9-7 9 7" />
+    <path d="M5 10v10h5v-6h4v6h5V10" />
+  </svg>
+);
+
+/** Bola de bingo. */
+export const IconBall = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="4.5" />
+  </svg>
+);
+
+/** Borracha: desfazer o último número. */
+export const IconEraser = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M8 20h12" />
+    <path d="M4.5 15.5l9-9a2 2 0 012.8 0l3.2 3.2a2 2 0 010 2.8L13 19H8.5l-4-4a1 1 0 010-1.4z" />
+    <path d="M9 11l5 5" />
+  </svg>
+);
+
+/** Disquete: salvar backup. */
+export const IconSave = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M5 3h11l3 3v13a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+    <path d="M7 3v5h8V3" />
+    <rect x="7" y="13" width="10" height="6" rx="1" />
+  </svg>
+);
+
+/** Documento: abrir um arquivo de backup. */
+export const IconFile = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M6 2h8l5 5v13a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" />
+    <path d="M14 2v5h5" />
+    <path d="M8 13h8M8 17h5" />
+  </svg>
+);
+
+/** Relógio: histórico. */
+export const IconClock = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
     <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+/** Celular com sinal de mais: instalar o app. */
+export const IconInstall = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <path d="M12 8v6M9 11h6" />
+    <path d="M11 18.5h2" />
+  </svg>
+);
+
+/** Lista: ordem do sorteio. */
+export const IconList = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1" fill="currentColor" />
+    <circle cx="4.5" cy="12" r="1" fill="currentColor" />
+    <circle cx="4.5" cy="18" r="1" fill="currentColor" />
   </svg>
 );

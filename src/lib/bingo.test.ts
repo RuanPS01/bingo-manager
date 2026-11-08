@@ -9,7 +9,7 @@ const game: MatchGame = {
   key: 'k1',
   cardId: card.id,
   cardNumber: card.number,
-  owner: card.owner,
+  cardName: card.name,
   prizeId: 'bicicleta',
   grid: card.grid,
 };

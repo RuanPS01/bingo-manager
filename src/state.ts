@@ -4,6 +4,7 @@ export type Action =
   | { type: 'replace'; state: AppState }
   | { type: 'card/save'; card: Card }
   | { type: 'card/remove'; id: string }
+  | { type: 'card/rename'; id: string; name: string }
   | { type: 'match/start'; name: string; games: MatchGame[]; modeIds: string[] }
   | { type: 'match/update'; name: string; games: MatchGame[]; modeIds: string[] }
   | { type: 'match/draw'; ball: number }
@@ -35,7 +36,26 @@ export function reducer(state: AppState, action: Action): AppState {
       const cards = exists
         ? state.cards.map((c) => (c.id === action.card.id ? action.card : c))
         : [...state.cards, action.card];
-      return { ...state, cards };
+      const activeMatch = state.activeMatch && {
+        ...state.activeMatch,
+        games: state.activeMatch.games.map((g) =>
+          g.cardId === action.card.id
+            ? { ...g, cardName: action.card.name, cardNumber: action.card.number, grid: [...action.card.grid] }
+            : g,
+        ),
+      };
+      return { ...state, cards, activeMatch };
+    }
+
+    case 'card/rename': {
+      const name = action.name.trim();
+      const cards = state.cards.map((c) => (c.id === action.id ? { ...c, name } : c));
+      // A partida em andamento acompanha o novo nome; o histórico guarda o nome da época.
+      const activeMatch = state.activeMatch && {
+        ...state.activeMatch,
+        games: state.activeMatch.games.map((g) => (g.cardId === action.id ? { ...g, cardName: name } : g)),
+      };
+      return { ...state, cards, activeMatch };
     }
 
     case 'card/remove':

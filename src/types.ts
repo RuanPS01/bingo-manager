@@ -12,7 +12,8 @@ export interface Prize {
 export interface Card {
   id: string;
   number: string;
-  owner: string;
+  /** Nome que identifica a cartela (ex.: o nome de quem comprou). Editável. */
+  name: string;
   prizeIds: string[];
   grid: Grid;
 }
@@ -25,7 +26,7 @@ export interface MatchGame {
   key: string;
   cardId: string;
   cardNumber: string;
-  owner: string;
+  cardName: string;
   prizeId: string;
   grid: Grid;
 }
@@ -46,6 +47,7 @@ export interface Settings {
   vibration: boolean;
   sortByProgress: boolean;
   keepAwake: boolean;
+  hideInstallTip: boolean;
 }
 
 export interface AppState {

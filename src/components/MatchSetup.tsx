@@ -3,7 +3,8 @@ import { PRIZES, getPrize } from '../data/event';
 import { MODES, MODE_GROUPS, DEFAULT_MODE_IDS } from '../data/modes';
 import type { Card, MatchGame } from '../types';
 import { BingoGrid, ModePreview } from './BingoGrid';
-import { IconPlay, IconCheck } from './Icons';
+import { cardLabel } from './CardName';
+import { IconBall, IconCheck } from './Icons';
 
 export interface SetupResult {
   name: string;
@@ -59,7 +60,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
               key,
               cardId: card.id,
               cardNumber: card.number,
-              owner: card.owner,
+              cardName: card.name,
               prizeId: pid,
               grid: [...card.grid],
             }
@@ -146,7 +147,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
             const count = keys.filter((k) => selected.has(k)).length;
             const state = count === 0 ? 'off' : count === keys.length ? 'on' : 'some';
             return (
-              <article key={card.id} className={`setup-card ${count > 0 ? 'is-selected' : ''}`}>
+              <article key={card.id} className={`setup-card ${count > 0 ? 'is-selected' : ''}`} data-card={card.number}>
                 <button
                   type="button"
                   className="setup-card-head"
@@ -155,8 +156,8 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
                 >
                   <span className={`checkbox checkbox-${state}`}>{state !== 'off' && <IconCheck size={14} />}</span>
                   <span className="setup-card-title">
-                    <strong>Cartela {card.number}</strong>
-                    {card.owner && <span className="owner">{card.owner}</span>}
+                    <strong>{cardLabel(card.name, card.number)}</strong>
+                    <span className="owner">Cartela {card.number}</span>
                   </span>
                   <span className="count-badge">
                     {count}/{keys.length} jogos
@@ -280,7 +281,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
             disabled={!canSubmit}
             onClick={() => onSubmit({ name: finalName, games, modeIds })}
           >
-            <IconPlay size={18} />
+            <IconBall size={20} />
             {submitLabel}
           </button>
         </div>
