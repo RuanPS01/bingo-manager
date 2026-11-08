@@ -106,6 +106,9 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
     return settings.sortByProgress ? list.sort((a, b) => a.closest - b.closest) : list;
   }, [evaluation, settings.sortByProgress]);
 
+  // Na visão compacta todos os jogos ficam numa grade única, para caberem de uma vez na tela.
+  const flatResults = useMemo(() => groups.flatMap((g) => g.results), [groups]);
+
   const drawBall = (ball: number) => {
     if (readOnly) return;
     unlockAudio();
@@ -556,30 +559,55 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
                 Mais perto
               </button>
             </div>
+            <button
+              type="button"
+              className={`btn btn-sm view-toggle ${settings.compactView ? 'is-on' : ''}`}
+              aria-pressed={settings.compactView}
+              onClick={() => dispatch({ type: 'settings', patch: { compactView: !settings.compactView } })}
+            >
+              <IconGrid size={16} />
+              Visão compacta
+            </button>
           </div>
-          <p className="muted small modes-line">Valendo: {match.modeIds.map(modeName).join(', ')}</p>
-          <div className="card-groups">
-            {groups.map((group) => (
-              <section key={group.cardId} className="card-group" data-card={group.first.cardNumber || group.cardId}>
-                <header className="card-group-head">
-                  <CardName
-                    name={group.first.cardName}
-                    number={group.first.cardNumber}
-                    onRename={
-                      readOnly ? undefined : (name) => dispatch({ type: 'card/rename', id: group.cardId, name })
-                    }
-                  />
-                  <span className="card-number-tag">Nº {group.first.cardNumber}</span>
-                  <span className="muted small">{group.results.length} jogo(s)</span>
-                </header>
-                <div className="games-grid">
-                  {group.results.map((r) => (
-                    <GameCard key={r.game.key} result={r} lastBall={lastBall} draws={match.draws} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+          <p className="muted small modes-line">
+            Valendo: {match.modeIds.map(modeName).join(', ')}
+            {settings.compactView && (
+              <>
+                <br />
+                Nos selos, o número é quanto falta para fechar o padrão; em dourado, já fechou.
+              </>
+            )}
+          </p>
+          {settings.compactView ? (
+            <div className="games-grid games-grid-compact">
+              {flatResults.map((r) => (
+                <GameCard key={r.game.key} result={r} lastBall={lastBall} draws={match.draws} compact />
+              ))}
+            </div>
+          ) : (
+            <div className="card-groups">
+              {groups.map((group) => (
+                <section key={group.cardId} className="card-group" data-card={group.first.cardNumber || group.cardId}>
+                  <header className="card-group-head">
+                    <CardName
+                      name={group.first.cardName}
+                      number={group.first.cardNumber}
+                      onRename={
+                        readOnly ? undefined : (name) => dispatch({ type: 'card/rename', id: group.cardId, name })
+                      }
+                    />
+                    <span className="card-number-tag">Nº {group.first.cardNumber}</span>
+                    <span className="muted small">{group.results.length} jogo(s)</span>
+                  </header>
+                  <div className="games-grid">
+                    {group.results.map((r) => (
+                      <GameCard key={r.game.key} result={r} lastBall={lastBall} draws={match.draws} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="match-actions">
@@ -639,7 +667,14 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
   );
 }
 
-function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: number | null; draws: number[] }) {
+interface GameCardProps {
+  result: GameResult;
+  lastBall: number | null;
+  draws: number[];
+  compact?: boolean;
+}
+
+function GameCard({ result, lastBall, draws, compact = false }: GameCardProps) {
   const { game, modes, marked } = result;
   const round = roundOf(game.prizeId);
   const won = modes.filter((m) => m.completedAt !== null);
@@ -647,6 +682,54 @@ function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: n
   const targets = new Set(modes.flatMap((m) => m.oneAway));
   const totalNumbers = game.grid.filter((n) => n !== 0).length;
   const status = won.length > 0 ? 'is-won' : result.closest === 1 ? 'is-close' : '';
+  const label = `${cardLabel(game.cardName, game.cardNumber)}, ${game.gameName}`;
+
+  if (compact) {
+    return (
+      <article className={`game-card game-card-compact ${status}`} data-game={game.key} data-marked={marked.size}>
+        <header className="gc-head">
+          <strong className="gc-name">{cardLabel(game.cardName, game.cardNumber)}</strong>
+          <span className="gc-game">
+            {round > 0 && <span className="chip-round">{round}</span>}
+            <span className="gc-game-name">{game.gameName}</span>
+          </span>
+        </header>
+        <BingoGrid
+          grid={game.grid}
+          marked={marked}
+          lastBall={lastBall}
+          winCells={winCells}
+          targets={targets}
+          size="xs"
+          label={label}
+        />
+        <ul className="mode-progress is-compact">
+          {modes.map((m) => {
+            const mode = getMode(m.modeId);
+            const done = m.completedAt !== null;
+            return (
+              <li
+                key={m.modeId}
+                className={done ? 'is-done' : m.needed === 1 ? 'is-close' : ''}
+                data-mode={m.modeId}
+                data-done={m.completedAt ?? ''}
+                data-needed={m.needed}
+                title={
+                  done
+                    ? `${modeName(m.modeId)}: completou no ${m.completedAt}º número`
+                    : `${modeName(m.modeId)}: faltam ${m.needed}`
+                }
+              >
+                {done && <IconTrophy size={10} />}
+                {mode?.short ?? modeName(m.modeId)}
+                {!done && <b>{m.needed}</b>}
+              </li>
+            );
+          })}
+        </ul>
+      </article>
+    );
+  }
 
   return (
     <article className={`game-card ${status}`} data-game={game.key} data-marked={marked.size}>
@@ -667,7 +750,7 @@ function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: n
         lastBall={lastBall}
         winCells={winCells}
         targets={targets}
-        label={`${cardLabel(game.cardName, game.cardNumber)}, ${game.gameName}`}
+        label={label}
       />
       <div className="game-card-count">
         {marked.size} de {totalNumbers} números marcados

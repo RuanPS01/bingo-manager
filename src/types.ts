@@ -64,6 +64,8 @@ export interface Settings {
   sortByProgress: boolean;
   keepAwake: boolean;
   hideInstallTip: boolean;
+  /** Jogos da partida em grade compacta, para ver todos de uma vez. */
+  compactView: boolean;
 }
 
 export interface AppState {

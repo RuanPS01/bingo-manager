@@ -2215,3 +2215,142 @@ button.ball-chip:disabled {
 .panel-info p {
   margin: 0 0 12px;
 }
+
+/* Visão compacta dos jogos da partida */
+
+.view-toggle {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--blue-800);
+}
+
+.view-toggle.is-on {
+  background: var(--blue-700);
+  border-color: var(--blue-700);
+  color: #fff;
+}
+
+.games-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
+  gap: 6px;
+}
+
+.game-card-compact {
+  padding: 5px;
+  border-radius: 10px;
+  border-width: 2px;
+  box-shadow: 0 1px 2px rgba(16, 48, 107, 0.08);
+  min-width: 0;
+}
+
+.gc-head {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-bottom: 3px;
+  line-height: 1.15;
+}
+
+.gc-name {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--blue-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gc-game {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--green-700);
+}
+
+.gc-game-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gc-game .chip-round {
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  font-size: 0.56rem;
+}
+
+.bingo-grid-xs,
+.bingo-grid-xs .bingo-row {
+  gap: 1px;
+}
+
+.bingo-grid-xs .bingo-letter {
+  font-size: 0.52rem;
+  line-height: 1.2;
+}
+
+.bingo-grid-xs .bingo-cell {
+  font-size: 0.66rem;
+  font-weight: 700;
+  border-width: 1px;
+  border-radius: 3px;
+}
+
+.bingo-grid-xs .bingo-cell.is-last {
+  outline-width: 2px;
+  outline-offset: 0;
+}
+
+.bingo-grid-xs .bingo-cell.is-target {
+  border-width: 1px;
+}
+
+.mode-progress.is-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.mode-progress.is-compact li {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border: none;
+  border-radius: 999px;
+  background: var(--blue-50);
+  color: var(--blue-800);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.mode-progress.is-compact li b {
+  font-weight: 900;
+}
+
+.mode-progress.is-compact li.is-close {
+  background: var(--orange-100);
+  color: var(--orange-600);
+}
+
+.mode-progress.is-compact li.is-done {
+  background: var(--gold-400);
+  color: var(--blue-950);
+}
+
+@media (min-width: 760px) {
+  .games-grid-compact {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+  }
+
+  .bingo-grid-xs .bingo-cell {
+    font-size: 0.8rem;
+  }
+}

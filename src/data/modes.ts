@@ -15,6 +15,8 @@
 export interface BingoMode {
   id: string;
   name: string;
+  /** Nome curto para a visão compacta. */
+  short: string;
   group: ModeGroup;
   description: string;
   patterns: number[][];
@@ -65,6 +67,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'quadra',
     name: 'Quadra',
+    short: 'Quadra',
     group: 'Tradicionais',
     description: '4 números marcados na mesma linha horizontal.',
     patterns: ROWS,
@@ -74,6 +77,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'quina',
     name: 'Quina',
+    short: 'Quina',
     group: 'Tradicionais',
     description: 'Uma linha horizontal completa (5 números).',
     patterns: ROWS,
@@ -82,6 +86,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'cartela-cheia',
     name: 'Cartela cheia',
+    short: 'Cheia',
     group: 'Tradicionais',
     description: 'Todos os números da cartela marcados.',
     patterns: [ALL_CELLS],
@@ -92,6 +97,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'linha-vertical',
     name: 'Linha vertical',
+    short: 'Vertical',
     group: 'Linhas',
     description: 'Uma coluna completa (B, I, N, G ou O).',
     patterns: COLS,
@@ -100,6 +106,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'diagonal',
     name: 'Diagonal',
+    short: 'Diagonal',
     group: 'Linhas',
     description: 'Uma das duas diagonais completa.',
     patterns: DIAGONALS,
@@ -108,6 +115,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'linha-qualquer',
     name: 'Linha em qualquer direção',
+    short: 'Linha',
     group: 'Linhas',
     description: 'Uma linha completa na horizontal, vertical ou diagonal.',
     patterns: ALL_LINES,
@@ -116,6 +124,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'quadra-qualquer',
     name: 'Quadra em qualquer direção',
+    short: 'Quadra+',
     group: 'Linhas',
     description: '4 números marcados na mesma linha horizontal, vertical ou diagonal.',
     patterns: ALL_LINES,
@@ -125,6 +134,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'duas-linhas',
     name: 'Duas linhas',
+    short: '2 linhas',
     group: 'Linhas',
     description: 'Duas linhas completas em qualquer direção.',
     patterns: pairs(ALL_LINES).map(([a, b]) => shape(a, b)),
@@ -133,6 +143,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'duas-quinas',
     name: 'Duas quinas',
+    short: '2 quinas',
     group: 'Linhas',
     description: 'Duas linhas horizontais completas.',
     patterns: pairs(ROWS).map(([a, b]) => shape(a, b)),
@@ -143,6 +154,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'quatro-cantos',
     name: 'Quatro cantos',
+    short: '4 cantos',
     group: 'Figuras',
     description: 'Os quatro números dos cantos da cartela.',
     patterns: [[0, 4, 20, 24]],
@@ -151,6 +163,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'selo',
     name: 'Selo',
+    short: 'Selo',
     group: 'Figuras',
     description: 'Um quadrado 2x2 em qualquer canto da cartela.',
     patterns: STAMPS,
@@ -159,6 +172,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'cruz',
     name: 'Cruz',
+    short: 'Cruz',
     group: 'Figuras',
     description: 'Linha do meio e coluna N completas (sinal de mais).',
     patterns: [shape(ROWS[2], COLS[2])],
@@ -167,6 +181,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-x',
     name: 'Letra X',
+    short: 'X',
     group: 'Figuras',
     description: 'As duas diagonais completas.',
     patterns: [shape(DIAG_MAIN, DIAG_ANTI)],
@@ -175,6 +190,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-t',
     name: 'Letra T',
+    short: 'T',
     group: 'Figuras',
     description: 'Primeira linha e coluna N completas.',
     patterns: [shape(ROWS[0], COLS[2])],
@@ -183,6 +199,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-l',
     name: 'Letra L',
+    short: 'L',
     group: 'Figuras',
     description: 'Coluna B e última linha completas.',
     patterns: [shape(COLS[0], ROWS[4])],
@@ -191,6 +208,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-u',
     name: 'Letra U',
+    short: 'U',
     group: 'Figuras',
     description: 'Colunas B e O e última linha completas.',
     patterns: [shape(COLS[0], COLS[4], ROWS[4])],
@@ -199,6 +217,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-h',
     name: 'Letra H',
+    short: 'H',
     group: 'Figuras',
     description: 'Colunas B e O e linha do meio completas.',
     patterns: [shape(COLS[0], COLS[4], ROWS[2])],
@@ -207,6 +226,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-n',
     name: 'Letra N',
+    short: 'N',
     group: 'Figuras',
     description: 'Colunas B e O e a diagonal que desce da esquerda para a direita.',
     patterns: [shape(COLS[0], COLS[4], DIAG_MAIN)],
@@ -215,6 +235,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'letra-z',
     name: 'Letra Z',
+    short: 'Z',
     group: 'Figuras',
     description: 'Primeira linha, última linha e a diagonal que sobe da esquerda para a direita.',
     patterns: [shape(ROWS[0], ROWS[4], DIAG_ANTI)],
@@ -223,6 +244,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'moldura',
     name: 'Moldura',
+    short: 'Moldura',
     group: 'Figuras',
     description: 'Todas as bordas da cartela (letra O).',
     patterns: [FRAME],
@@ -231,6 +253,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'quadrado-meio',
     name: 'Quadrado do meio',
+    short: 'Miolo',
     group: 'Figuras',
     description: 'Os 9 números do quadrado central 3x3.',
     patterns: [CENTER_SQUARE],
@@ -239,6 +262,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'losango',
     name: 'Losango',
+    short: 'Losango',
     group: 'Figuras',
     description: 'Contorno de um losango ao redor do centro.',
     patterns: [DIAMOND],
@@ -247,6 +271,7 @@ export const MODES: BingoMode[] = [
   {
     id: 'piramide',
     name: 'Pirâmide',
+    short: 'Pirâmide',
     group: 'Figuras',
     description: 'Última linha completa, três números acima e o centro.',
     patterns: [PYRAMID],

@@ -90,6 +90,13 @@ export class BingoApp {
   }
 
   /** Responde à confirmação, que sempre abre por cima de qualquer outra janela. */
+  /** Liga ou desliga a visão compacta dos jogos da partida. */
+  async visaoCompacta(ligada: boolean) {
+    const botao = this.page.getByRole('button', { name: 'Visão compacta' });
+    if ((await botao.getAttribute('aria-pressed')) !== String(ligada)) await botao.click();
+    await expect(botao).toHaveAttribute('aria-pressed', String(ligada));
+  }
+
   async confirmar(botao: string) {
     const antes = await this.modal.count();
     await this.modal.last().getByRole('button', { name: botao, exact: true }).click();

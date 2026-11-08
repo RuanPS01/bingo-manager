@@ -10,7 +10,7 @@ interface BingoGridProps {
   winCells?: Set<number>;
   /** Números que completariam algum modo se forem sorteados. */
   targets?: Set<number>;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   label?: string;
 }
 
@@ -32,7 +32,7 @@ export function BingoGrid({ grid, marked, lastBall, winCells, targets, size = 'm
             if (n === FREE) {
               return (
                 <div key={cell} role="cell" className={`bingo-cell is-free ${winCells?.has(cell) ? 'is-win' : ''}`}>
-                  <IconStar size={size === 'sm' ? 11 : 18} />
+                  <IconStar size={size === 'xs' ? 9 : size === 'sm' ? 11 : 18} />
                   <span className="sr-only">Livre</span>
                 </div>
               );

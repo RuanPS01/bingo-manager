@@ -216,6 +216,11 @@ for (const cartela of NUMEROS_CARTELAS) {
         await page.locator('.action-bar').getByRole('button', { name: 'Iniciar jogo' }).click();
         await expect(page.locator('.match-title strong')).toHaveText(titulo);
         await expect(app.feedback).toHaveText('Digite o primeiro número sorteado e toque em Marcar.');
+        // algumas partidas inteiras são jogadas na visão compacta
+        const compacta = i % 5 === 3;
+        await app.visaoCompacta(compacta);
+        await expect(page.locator('.games-grid-compact')).toHaveCount(compacta ? 1 : 0);
+        if (compacta) resumo.eventos.add('visão compacta');
 
         // ---------- Funções da partida ----------
         const conferir = async () => {
