@@ -8,14 +8,28 @@ export interface Prize {
   sponsor: string;
 }
 
-/** Cartela física. Cada prêmio listado em prizeIds é um jogo da cartela. */
+/**
+ * Jogo (tabela BINGO) de uma cartela. Pode ser um prêmio do Show de Prêmios
+ * ou um jogo avulso cadastrado pelo usuário (ex.: binguinho).
+ */
+export interface CardGame {
+  /** Identificador do jogo na cartela. Nos prêmios do Show é o próprio id do prêmio. */
+  id: string;
+  /** Prêmio do Show de Prêmios, ou null para um jogo avulso. */
+  prizeId: string | null;
+  /** Nome exibido do jogo. */
+  name: string;
+  grid: Grid;
+}
+
+/** Cartela: um ou mais jogos, cada um com seus números. */
 export interface Card {
   id: string;
+  /** Número impresso na cartela (opcional em cartelas cadastradas à mão). */
   number: string;
   /** Nome que identifica a cartela (ex.: o nome de quem comprou). Editável. */
   name: string;
-  prizeIds: string[];
-  grid: Grid;
+  games: CardGame[];
 }
 
 /**
@@ -27,7 +41,9 @@ export interface MatchGame {
   cardId: string;
   cardNumber: string;
   cardName: string;
-  prizeId: string;
+  gameId: string;
+  prizeId: string | null;
+  gameName: string;
   grid: Grid;
 }
 

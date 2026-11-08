@@ -1,5 +1,5 @@
-import { DEFAULT_CARDS } from '../data/event';
-import type { AppState, Card, Match, MatchGame, Settings } from '../types';
+import { DEFAULT_CARDS, getPrize, prizeGame } from '../data/event';
+import type { AppState, Card, CardGame, Match, MatchGame, Settings } from '../types';
 
 export const STORAGE_KEY = 'bingo-apae-2026:v1';
 
@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export function initialState(): AppState {
   return {
     version: 1,
-    cards: DEFAULT_CARDS.map((c) => ({ ...c, grid: [...c.grid], prizeIds: [...c.prizeIds] })),
+    cards: DEFAULT_CARDS.map((c) => ({ ...c, games: c.games.map((g) => ({ ...g, grid: [...g.grid] })) })),
     activeMatch: null,
     history: [],
     settings: { ...DEFAULT_SETTINGS },
@@ -28,27 +28,47 @@ const isGrid = (v: unknown): v is number[] =>
 
 const text = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
 
-/** Valida uma cartela. Aceita o formato antigo, em que o nome se chamava "owner". */
-function normalizeCard(v: unknown): Card | null {
-  if (!isObject(v) || typeof v.id !== 'string' || typeof v.number !== 'string') return null;
-  if (!Array.isArray(v.prizeIds) || !isGrid(v.grid)) return null;
+const notNull = <T>(v: T | null): v is T => v !== null;
+
+function normalizeCardGame(v: unknown): CardGame | null {
+  if (!isObject(v) || typeof v.id !== 'string' || !isGrid(v.grid)) return null;
+  const prizeId = typeof v.prizeId === 'string' ? v.prizeId : null;
   return {
     id: v.id,
-    number: v.number,
-    name: text(v.name, text(v.owner)),
-    prizeIds: v.prizeIds.filter((p): p is string => typeof p === 'string'),
+    prizeId,
+    name: text(v.name) || (prizeId ? getPrize(prizeId).name : 'Jogo'),
     grid: v.grid,
   };
 }
 
+/**
+ * Valida uma cartela. Aceita os formatos antigos: nome em "owner" e um único
+ * "grid" com a lista "prizeIds" (todos os jogos com os mesmos números).
+ */
+function normalizeCard(v: unknown): Card | null {
+  if (!isObject(v) || typeof v.id !== 'string') return null;
+  let games: CardGame[] = [];
+  if (Array.isArray(v.games)) {
+    games = v.games.map(normalizeCardGame).filter(notNull);
+  } else if (Array.isArray(v.prizeIds) && isGrid(v.grid)) {
+    const grid = v.grid;
+    games = v.prizeIds.filter((p): p is string => typeof p === 'string').map((p) => prizeGame(p, grid));
+  }
+  if (games.length === 0) return null;
+  return { id: v.id, number: text(v.number), name: text(v.name, text(v.owner)), games };
+}
+
 function normalizeGame(v: unknown): MatchGame | null {
   if (!isObject(v) || typeof v.key !== 'string' || typeof v.cardId !== 'string' || !isGrid(v.grid)) return null;
+  const prizeId = typeof v.prizeId === 'string' ? v.prizeId : null;
   return {
     key: v.key,
     cardId: v.cardId,
     cardNumber: text(v.cardNumber),
     cardName: text(v.cardName, text(v.owner)),
-    prizeId: text(v.prizeId),
+    gameId: text(v.gameId) || v.key.split('::')[1] || prizeId || v.key,
+    prizeId,
+    gameName: text(v.gameName) || (prizeId ? getPrize(prizeId).name : 'Jogo'),
     grid: v.grid,
   };
 }
@@ -68,8 +88,6 @@ function normalizeMatch(v: unknown): Match | null {
     draws: [...new Set(draws)],
   };
 }
-
-const notNull = <T>(v: T | null): v is T => v !== null;
 
 /**
  * Converte um objeto qualquer (do localStorage ou de um arquivo de backup)

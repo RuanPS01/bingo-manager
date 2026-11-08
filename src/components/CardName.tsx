@@ -1,10 +1,8 @@
 import { useState } from 'react';
+import { cardLabel } from '../lib/cards';
 import { IconEdit } from './Icons';
 
-/** Texto exibido para a cartela: o nome dado pelo usuário ou o número. */
-export function cardLabel(name: string, number: string): string {
-  return name.trim() || `Cartela ${number}`;
-}
+export { cardLabel };
 
 interface CardNameProps {
   name: string;
@@ -46,8 +44,8 @@ export function CardName({ name, number, onRename, size = 'md' }: CardNameProps)
           }}
           maxLength={40}
           autoFocus
-          placeholder={`Cartela ${number}`}
-          aria-label={`Nome da cartela ${number}`}
+          placeholder={number ? `Cartela ${number}` : 'Nome da cartela'}
+          aria-label={`Nome da cartela ${number || name}`}
         />
         <button type="submit" className="btn btn-primary btn-sm">
           Salvar
@@ -67,7 +65,7 @@ export function CardName({ name, number, onRename, size = 'md' }: CardNameProps)
           type="button"
           className="icon-btn icon-btn-sm"
           onClick={start}
-          aria-label={`Renomear cartela ${number}`}
+          aria-label={`Renomear cartela ${number || name}`}
           title="Renomear"
         >
           <IconEdit size={16} />

@@ -15,7 +15,8 @@ import {
   IconSave,
   IconTrophy,
 } from '../components/Icons';
-import { EVENT, getPrize } from '../data/event';
+import { EVENT, roundOf } from '../data/event';
+import { cardLabel, hasSameNumbers, toMatchGame } from '../lib/cards';
 import { getMode } from '../data/modes';
 import { evaluateMatch, formatBall } from '../lib/bingo';
 import { exportState, readBackupFile } from '../lib/storage';
@@ -58,7 +59,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
   const removeCard = async (card: Card) => {
     const ok = await confirm({
-      title: `Excluir a cartela ${card.name || card.number}?`,
+      title: `Excluir ${cardLabel(card.name, card.number)}?`,
       message: 'Partidas já iniciadas e o histórico não são afetados.',
       confirmLabel: 'Excluir',
       danger: true,
@@ -161,13 +162,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
           <header className="panel-head">
             <div>
               <h2>Cartelas disponíveis</h2>
-              <span className="muted small">
-                {state.cards.length} cartela(s),{' '}
-                {(state.cards.length * EVENT.cardPrice).toLocaleString('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                })}
-              </span>
+              <span className="muted small">{state.cards.length} cartela(s)</span>
             </div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing('new')}>
               <IconPlus size={16} />
@@ -179,7 +174,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
           <div className="card-list">
             {state.cards.map((card) => (
-              <article key={card.id} className="card-item" data-card={card.number}>
+              <article key={card.id} className="card-item" data-card={card.number || card.id}>
                 <div className="card-item-head">
                   <CardName
                     name={card.name}
@@ -187,17 +182,24 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
                     size="lg"
                     onRename={(name) => dispatch({ type: 'card/rename', id: card.id, name })}
                   />
-                  <span className="card-number-tag">Nº {card.number}</span>
+                  {card.number && <span className="card-number-tag">Nº {card.number}</span>}
                 </div>
                 <div className="card-item-body">
-                  <BingoGrid grid={card.grid} size="sm" label={`Números da cartela ${card.number}`} />
+                  <div>
+                    <BingoGrid
+                      grid={card.games[0].grid}
+                      size="sm"
+                      label={`Números de ${cardLabel(card.name, card.number)}`}
+                    />
+                    {!hasSameNumbers(card) && <small className="muted small">Números do 1º jogo</small>}
+                  </div>
                   <ul className="prize-list">
-                    {card.prizeIds.map((pid) => {
-                      const p = getPrize(pid);
+                    {card.games.map((g) => {
+                      const round = roundOf(g.prizeId);
                       return (
-                        <li key={pid}>
-                          <span className="chip-round">{p.round}</span>
-                          {p.name}
+                        <li key={g.id} className={round ? '' : 'is-custom'}>
+                          {round > 0 && <span className="chip-round">{round}</span>}
+                          {g.name}
                         </li>
                       );
                     })}
@@ -212,6 +214,11 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
               </article>
             ))}
           </div>
+
+          <button type="button" className="add-tile" onClick={() => setEditing('new')}>
+            <IconPlus size={20} />
+            Adicionar cartela ou jogo avulso
+          </button>
         </section>
 
         <HistoryList history={state.history} onOpen={(m) => navigate(`/historico/${m.id}`)} />
@@ -256,12 +263,23 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
       {editing && (
         <CardEditor
           card={editing === 'new' ? null : editing}
-          existingNumbers={state.cards.filter((c) => editing === 'new' || c.id !== editing.id).map((c) => c.number)}
+          existingNumbers={state.cards
+            .filter((c) => editing === 'new' || c.id !== editing.id)
+            .map((c) => c.number)
+            .filter(Boolean)}
           onClose={() => setEditing(null)}
           onDelete={removeCard}
-          onSave={(card) => {
+          playLabel={active ? 'Salvar e incluir na partida' : 'Salvar e jogar'}
+          onSave={(card, intent) => {
             dispatch({ type: 'card/save', card });
             setEditing(null);
+            if (intent !== 'play') return;
+            if (active) {
+              dispatch({ type: 'match/add-games', games: card.games.map((g) => toMatchGame(card, g)) });
+              navigate('/partida');
+            } else {
+              navigate(`/nova-partida/${encodeURIComponent(card.id)}`);
+            }
           }}
         />
       )}

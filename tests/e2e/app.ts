@@ -88,9 +88,11 @@ export class BingoApp {
     await this.page.locator(`.ball-board button[data-ball="${n}"]`).click();
   }
 
+  /** Responde à confirmação, que sempre abre por cima de qualquer outra janela. */
   async confirmar(botao: string) {
-    await this.modal.getByRole('button', { name: botao, exact: true }).click();
-    await expect(this.modal).toHaveCount(0);
+    const antes = await this.modal.count();
+    await this.modal.last().getByRole('button', { name: botao, exact: true }).click();
+    await expect(this.modal).toHaveCount(botao === 'Cancelar' ? antes - 1 : 0);
   }
 
   async lerTela(): Promise<EstadoTela> {

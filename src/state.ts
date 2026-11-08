@@ -7,6 +7,7 @@ export type Action =
   | { type: 'card/rename'; id: string; name: string }
   | { type: 'match/start'; name: string; games: MatchGame[]; modeIds: string[] }
   | { type: 'match/update'; name: string; games: MatchGame[]; modeIds: string[] }
+  | { type: 'match/add-games'; games: MatchGame[] }
   | { type: 'match/draw'; ball: number }
   | { type: 'match/undo' }
   | { type: 'match/remove-ball'; ball: number }
@@ -36,13 +37,19 @@ export function reducer(state: AppState, action: Action): AppState {
       const cards = exists
         ? state.cards.map((c) => (c.id === action.card.id ? action.card : c))
         : [...state.cards, action.card];
+      // A partida em andamento acompanha as correções da cartela (nome, número e números dos jogos).
       const activeMatch = state.activeMatch && {
         ...state.activeMatch,
-        games: state.activeMatch.games.map((g) =>
-          g.cardId === action.card.id
-            ? { ...g, cardName: action.card.name, cardNumber: action.card.number, grid: [...action.card.grid] }
-            : g,
-        ),
+        games: state.activeMatch.games.map((g) => {
+          if (g.cardId !== action.card.id) return g;
+          const game = action.card.games.find((cg) => cg.id === g.gameId);
+          return {
+            ...g,
+            cardName: action.card.name,
+            cardNumber: action.card.number,
+            ...(game ? { gameName: game.name, prizeId: game.prizeId, grid: [...game.grid] } : {}),
+          };
+        }),
       };
       return { ...state, cards, activeMatch };
     }
@@ -78,6 +85,12 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'match/update':
       return withMatch(state, (m) => ({ ...m, name: action.name, games: action.games, modeIds: action.modeIds }));
+
+    case 'match/add-games':
+      return withMatch(state, (m) => {
+        const keys = new Set(m.games.map((g) => g.key));
+        return { ...m, games: [...m.games, ...action.games.filter((g) => !keys.has(g.key))] };
+      });
 
     case 'match/draw':
       return withMatch(state, (m) => (m.draws.includes(action.ball) ? m : { ...m, draws: [...m.draws, action.ball] }));

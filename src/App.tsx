@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { ConfirmProvider } from './components/Dialog';
 import { IconHome } from './components/Icons';
 import { MatchSetup, type SetupResult } from './components/MatchSetup';
+import { DEFAULT_MODE_IDS } from './data/modes';
+import { toMatchGame } from './lib/cards';
 import { STORAGE_KEY, loadState, sanitizeState, saveState } from './lib/storage';
 import { reducer } from './state';
 import type { Card, Match } from './types';
@@ -42,14 +44,8 @@ function cardsForEditing(cards: Card[], match: Match): Card[] {
   const extra = new Map<string, Card>();
   for (const g of match.games) {
     if (known.has(g.cardId)) continue;
-    const card = extra.get(g.cardId) ?? {
-      id: g.cardId,
-      number: g.cardNumber,
-      name: g.cardName,
-      prizeIds: [],
-      grid: g.grid,
-    };
-    card.prizeIds.push(g.prizeId);
+    const card = extra.get(g.cardId) ?? { id: g.cardId, number: g.cardNumber, name: g.cardName, games: [] };
+    card.games.push({ id: g.gameId, prizeId: g.prizeId, name: g.gameName, grid: g.grid });
     extra.set(g.cardId, card);
   }
   return [...cards, ...extra.values()];
@@ -94,24 +90,39 @@ export default function App() {
     return m ? (state.history.find((h) => h.id === decodeURIComponent(m[1])) ?? null) : null;
   }, [route, state.history]);
 
+  // Nova partida, opcionalmente já com os jogos de uma cartela selecionados (#/nova-partida/<id>).
+  const newMatchRoute = route.match(/^\/nova-partida(?:\/(.+))?$/);
+  const preselected = newMatchRoute?.[1]
+    ? state.cards.find((c) => c.id === decodeURIComponent(newMatchRoute[1]))
+    : undefined;
+
   // Rotas que dependem de dados inexistentes voltam para o início.
   const invalidRoute =
     ((route === '/partida' || route === '/partida/editar') && !active) ||
-    (route === '/nova-partida' && Boolean(active)) ||
+    (Boolean(newMatchRoute) && Boolean(active)) ||
     (route.startsWith('/historico/') && !historyMatch);
   useEffect(() => {
-    if (invalidRoute) navigate(route === '/nova-partida' && active ? '/partida' : '/', true);
+    if (invalidRoute) navigate(route.startsWith('/nova-partida') && active ? '/partida' : '/', true);
   }, [invalidRoute, navigate, route, active]);
 
+  const saveCard = (card: Card) => dispatch({ type: 'card/save', card });
+
   let content;
-  if (route === '/nova-partida' && !active) {
+  if (newMatchRoute && !active) {
     content = (
       <SetupPage
+        key={route}
         title="Novo jogo"
         onBack={() => navigate('/')}
         backLabel="Início"
         cards={state.cards}
+        initial={
+          preselected
+            ? { name: '', games: preselected.games.map((g) => toMatchGame(preselected, g)), modeIds: DEFAULT_MODE_IDS }
+            : undefined
+        }
         submitLabel="Iniciar jogo"
+        onSaveCard={saveCard}
         onSubmit={(r) => {
           dispatch({ type: 'match/start', ...r });
           navigate('/partida', true);
@@ -127,6 +138,7 @@ export default function App() {
         cards={cardsForEditing(state.cards, active)}
         initial={{ name: active.name, games: active.games, modeIds: active.modeIds }}
         submitLabel="Salvar alterações"
+        onSaveCard={saveCard}
         onSubmit={(r) => {
           dispatch({ type: 'match/update', ...r });
           navigate('/partida', true);
@@ -141,6 +153,7 @@ export default function App() {
         readOnly={false}
         settings={state.settings}
         canReopen={false}
+        cards={state.cards}
         dispatch={dispatch}
         navigate={navigate}
       />
@@ -153,6 +166,7 @@ export default function App() {
         readOnly
         settings={state.settings}
         canReopen={!active}
+        cards={state.cards}
         dispatch={dispatch}
         navigate={navigate}
       />
@@ -181,6 +195,7 @@ interface SetupPageProps {
   initial?: SetupResult;
   submitLabel: string;
   onSubmit: (r: SetupResult) => void;
+  onSaveCard: (card: Card) => void;
 }
 
 function SetupPage({ title, onBack, backLabel, ...rest }: SetupPageProps) {

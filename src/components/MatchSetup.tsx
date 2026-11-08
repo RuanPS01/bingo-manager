@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { PRIZES, getPrize } from '../data/event';
+import { PRIZES, roundOf } from '../data/event';
 import { MODES, MODE_GROUPS, DEFAULT_MODE_IDS } from '../data/modes';
+import { cardLabel, gameKey, hasSameNumbers, toMatchGame } from '../lib/cards';
 import type { Card, MatchGame } from '../types';
 import { BingoGrid, ModePreview } from './BingoGrid';
-import { cardLabel } from './CardName';
-import { IconBall, IconCheck } from './Icons';
+import { CardEditor } from './CardEditor';
+import { IconBall, IconCheck, IconPlus } from './Icons';
 
 export interface SetupResult {
   name: string;
@@ -17,30 +18,30 @@ interface MatchSetupProps {
   initial?: SetupResult;
   submitLabel: string;
   onSubmit: (result: SetupResult) => void;
+  /** Salva uma cartela cadastrada nesta tela. */
+  onSaveCard: (card: Card) => void;
 }
 
-export const gameKey = (cardId: string, prizeId: string) => `${cardId}::${prizeId}`;
-
-/** Nome sugerido para a partida a partir dos prêmios escolhidos. */
+/** Nome sugerido para a partida a partir dos jogos escolhidos. */
 export function suggestName(games: MatchGame[]): string {
-  const prizeIds = [...new Set(games.map((g) => g.prizeId))];
-  if (prizeIds.length === 0) return 'Partida';
-  if (prizeIds.length === 1) {
-    const p = getPrize(prizeIds[0]);
-    return p.round ? `${p.round}ª rodada: ${p.name}` : p.name;
+  const unique = [...new Map(games.map((g) => [g.prizeId ?? `avulso:${g.gameName}`, g])).values()];
+  if (unique.length === 0) return 'Partida';
+  if (unique.length === 1) {
+    const round = roundOf(unique[0].prizeId);
+    return round ? `${round}ª rodada: ${unique[0].gameName}` : unique[0].gameName;
   }
-  return prizeIds
-    .map(getPrize)
-    .sort((a, b) => a.round - b.round)
-    .map((p) => p.name)
+  return unique
+    .sort((a, b) => (roundOf(a.prizeId) || 99) - (roundOf(b.prizeId) || 99))
+    .map((g) => g.gameName)
     .join(' + ');
 }
 
-export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetupProps) {
+export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }: MatchSetupProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initial?.games.map((g) => g.key) ?? []));
   const [modeIds, setModeIds] = useState<string[]>(initial?.modeIds ?? DEFAULT_MODE_IDS);
   const [name, setName] = useState(initial?.name ?? '');
-  const [nameTouched, setNameTouched] = useState(Boolean(initial));
+  const [nameTouched, setNameTouched] = useState(Boolean(initial?.name));
+  const [adding, setAdding] = useState(false);
   // Grupos abertos ao carregar: os tradicionais e os que já têm modo escolhido.
   const [openGroups] = useState(() =>
     MODE_GROUPS.filter(
@@ -51,27 +52,16 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
   const games = useMemo<MatchGame[]>(() => {
     const previous = new Map(initial?.games.map((g) => [g.key, g]) ?? []);
     return cards.flatMap((card) =>
-      card.prizeIds
-        .filter((pid) => selected.has(gameKey(card.id, pid)))
-        .map((pid) => {
-          const key = gameKey(card.id, pid);
-          return (
-            previous.get(key) ?? {
-              key,
-              cardId: card.id,
-              cardNumber: card.number,
-              cardName: card.name,
-              prizeId: pid,
-              grid: [...card.grid],
-            }
-          );
-        }),
+      card.games
+        .filter((g) => selected.has(gameKey(card.id, g.id)))
+        .map((g) => previous.get(gameKey(card.id, g.id)) ?? toMatchGame(card, g)),
     );
   }, [cards, selected, initial]);
 
   const finalName = (nameTouched ? name.trim() : '') || suggestName(games);
   const cardsUsed = new Set(games.map((g) => g.cardId)).size;
   const canSubmit = games.length > 0 && modeIds.length > 0;
+  const keysOf = (card: Card) => card.games.map((g) => gameKey(card.id, g.id));
 
   const toggleGame = (key: string) =>
     setSelected((prev) => {
@@ -84,17 +74,19 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
   const toggleCard = (card: Card) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      const keys = card.prizeIds.map((pid) => gameKey(card.id, pid));
+      const keys = keysOf(card);
       const allOn = keys.every((k) => next.has(k));
       keys.forEach((k) => (allOn ? next.delete(k) : next.add(k)));
       return next;
     });
 
-  const selectRound = (prizeId: string) =>
-    setSelected(new Set(cards.filter((c) => c.prizeIds.includes(prizeId)).map((c) => gameKey(c.id, prizeId))));
+  const roundKeys = (prizeId: string) =>
+    cards.flatMap((c) => c.games.filter((g) => g.prizeId === prizeId).map((g) => gameKey(c.id, g.id)));
+
+  const selectRound = (prizeId: string) => setSelected(new Set(roundKeys(prizeId)));
 
   const roundActive = (prizeId: string) => {
-    const keys = cards.filter((c) => c.prizeIds.includes(prizeId)).map((c) => gameKey(c.id, prizeId));
+    const keys = roundKeys(prizeId);
     return keys.length > 0 && keys.length === selected.size && keys.every((k) => selected.has(k));
   };
 
@@ -113,7 +105,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => setSelected(new Set(cards.flatMap((c) => c.prizeIds.map((p) => gameKey(c.id, p)))))}
+              onClick={() => setSelected(new Set(cards.flatMap(keysOf)))}
             >
               Todos
             </button>
@@ -132,6 +124,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
               className={`round-btn ${roundActive(p.id) ? 'is-on' : ''}`}
               aria-pressed={roundActive(p.id)}
               onClick={() => selectRound(p.id)}
+              disabled={roundKeys(p.id).length === 0}
             >
               <span className="round-num">{p.round}ª rodada</span>
               <span className="round-name">{p.name}</span>
@@ -139,15 +132,19 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
           ))}
         </div>
 
-        {cards.length === 0 && <p className="empty">Nenhuma cartela cadastrada. Volte ao início para adicionar.</p>}
+        {cards.length === 0 && <p className="empty">Nenhuma cartela cadastrada ainda.</p>}
 
         <div className="setup-cards">
           {cards.map((card) => {
-            const keys = card.prizeIds.map((pid) => gameKey(card.id, pid));
+            const keys = keysOf(card);
             const count = keys.filter((k) => selected.has(k)).length;
             const state = count === 0 ? 'off' : count === keys.length ? 'on' : 'some';
             return (
-              <article key={card.id} className={`setup-card ${count > 0 ? 'is-selected' : ''}`} data-card={card.number}>
+              <article
+                key={card.id}
+                className={`setup-card ${count > 0 ? 'is-selected' : ''}`}
+                data-card={card.number || card.id}
+              >
                 <button
                   type="button"
                   className="setup-card-head"
@@ -157,28 +154,36 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
                   <span className={`checkbox checkbox-${state}`}>{state !== 'off' && <IconCheck size={14} />}</span>
                   <span className="setup-card-title">
                     <strong>{cardLabel(card.name, card.number)}</strong>
-                    <span className="owner">Cartela {card.number}</span>
+                    {card.number && <span className="owner">Cartela {card.number}</span>}
                   </span>
                   <span className="count-badge">
-                    {count}/{keys.length} jogos
+                    {count}/{keys.length} jogo(s)
                   </span>
                 </button>
                 <div className="setup-card-body">
-                  <BingoGrid grid={card.grid} size="sm" label={`Números da cartela ${card.number}`} />
+                  <div>
+                    <BingoGrid
+                      grid={card.games[0].grid}
+                      size="sm"
+                      label={`Números de ${cardLabel(card.name, card.number)}`}
+                    />
+                    {!hasSameNumbers(card) && <small className="muted small">Números do 1º jogo</small>}
+                  </div>
                   <div className="game-toggles">
-                    {card.prizeIds.map((pid) => {
-                      const p = getPrize(pid);
-                      const on = selected.has(gameKey(card.id, pid));
+                    {card.games.map((g) => {
+                      const key = gameKey(card.id, g.id);
+                      const on = selected.has(key);
+                      const round = roundOf(g.prizeId);
                       return (
                         <button
                           type="button"
-                          key={pid}
+                          key={g.id}
                           className={`chip chip-toggle ${on ? 'is-on' : ''}`}
                           aria-pressed={on}
-                          onClick={() => toggleGame(gameKey(card.id, pid))}
+                          onClick={() => toggleGame(key)}
                         >
-                          <span className="chip-round">{p.round}</span>
-                          {p.name}
+                          {round > 0 && <span className="chip-round">{round}</span>}
+                          {g.name}
                         </button>
                       );
                     })}
@@ -188,6 +193,11 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
             );
           })}
         </div>
+
+        <button type="button" className="add-tile" onClick={() => setAdding(true)}>
+          <IconPlus size={20} />
+          Adicionar cartela ou jogo avulso
+        </button>
       </section>
 
       <section className="panel">
@@ -260,6 +270,19 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit }: MatchSetup
           />
         </label>
       </section>
+
+      {adding && (
+        <CardEditor
+          card={null}
+          existingNumbers={cards.map((c) => c.number).filter(Boolean)}
+          onClose={() => setAdding(false)}
+          onSave={(card) => {
+            onSaveCard(card);
+            setSelected((prev) => new Set([...prev, ...keysOf(card)]));
+            setAdding(false);
+          }}
+        />
+      )}
 
       <div className="action-bar">
         <div className="action-bar-inner">

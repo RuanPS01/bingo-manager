@@ -28,7 +28,7 @@ import {
  * início; abrir o histórico; reabrir uma partida finalizada.
  */
 
-const PARTIDAS_POR_CARTELA = 20;
+const PARTIDAS_POR_CARTELA = Number(process.env.PARTIDAS ?? 20);
 const MIN_SORTEIOS = 22;
 
 interface Jogo {
@@ -264,6 +264,14 @@ for (const cartela of NUMEROS_CARTELAS) {
 
         // ---------- Sorteio ----------
         let primeiraConquista: number | null = null;
+        // Cada ação especial acontece uma única vez por partida (remover e sortear de novo
+        // faz a contagem voltar ao mesmo valor, e sem isso a ação se repetiria).
+        const feitos = new Set<number>();
+        const quando = (marca: number, condicao = true) => {
+          if (!condicao || p.sorteios.length !== marca || feitos.has(marca)) return false;
+          feitos.add(marca);
+          return true;
+        };
         while (fila.length > 0) {
           const k = p.sorteios.length + 1;
           const metodo = k % 7 === 3 ? 'painel' : k % 3 === 1 ? 'botao' : 'enter';
@@ -271,7 +279,7 @@ for (const cartela of NUMEROS_CARTELAS) {
           const total = p.sorteios.length;
           if (primeiraConquista === null && p.conquistas().length > 0) primeiraConquista = total;
 
-          if (total === 3) {
+          if (quando(3)) {
             const invalido = ['0', '76', 'abc', ''][i % 4];
             await app.digitar(invalido, 'enter');
             await expect(app.feedback).toHaveText(
@@ -279,14 +287,14 @@ for (const cartela of NUMEROS_CARTELAS) {
             );
             resumo.eventos.add('número inválido');
           }
-          if (total === 5 && i % 8 === 0) {
+          if (quando(5, i % 8 === 0)) {
             await page.getByRole('button', { name: 'Som ativado' }).click();
             await page.getByRole('button', { name: 'Som desativado' }).click();
             await page.getByRole('button', { name: 'Tela sempre ligada: ativado' }).click();
             await page.getByRole('button', { name: 'Tela sempre ligada: desativado' }).click();
             resumo.eventos.add('som e tela ligada');
           }
-          if (total === 6) {
+          if (quando(6)) {
             const repetido = p.sorteios[1];
             await app.digitar(formatar(repetido, i), 'enter');
             await expect(app.feedback).toHaveText(
@@ -294,7 +302,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             );
             resumo.eventos.add('número repetido');
           }
-          if (total === 8 && i % 6 === 4) {
+          if (quando(8, i % 6 === 4)) {
             const novo = `${CARTELAS[cartela].nome} ${i + 1}`;
             const grupo = page.locator(`.card-group[data-card="${cartela}"]`);
             await grupo.getByRole('button', { name: `Renomear cartela ${cartela}` }).click();
@@ -304,7 +312,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             nomes[cartela] = novo;
             resumo.eventos.add('renomear cartela na partida');
           }
-          if (total === 9) {
+          if (quando(9)) {
             const ultimo = p.sorteios.pop()!;
             await page.getByRole('button', { name: 'Desfazer último número' }).click();
             await expect(app.feedback).toHaveText(`${bola(ultimo)} foi desfeito.`);
@@ -312,7 +320,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             await sortear(ultimo, 'enter');
             resumo.eventos.add('desfazer');
           }
-          if (total === 10 && i % 4 === 1) {
+          if (quando(10, i % 4 === 1)) {
             await app.irParaInicio();
             await expect(page.locator('.active-card h2')).toHaveText(titulo);
             await expect(page.locator('.active-stats div').first().locator('strong')).toHaveText(
@@ -324,7 +332,7 @@ for (const cartela of NUMEROS_CARTELAS) {
             await conferir();
             resumo.eventos.add('sair e continuar');
           }
-          if (total === 12 && i % 5 === 2) {
+          if (quando(12, i % 5 === 2)) {
             const extra = ['quatro-cantos', 'moldura', 'letra-x', 'cruz'].find((m) => !p.modos.includes(m))!;
             await page.getByRole('button', { name: 'Editar jogos e modos' }).click();
             await expect(page.locator('.setup')).toBeVisible();
@@ -336,21 +344,21 @@ for (const cartela of NUMEROS_CARTELAS) {
             await conferir();
             resumo.eventos.add('editar modos na partida');
           }
-          if (total === 15 && i % 3 === 0) {
+          if (quando(15, i % 3 === 0)) {
             await page.reload();
             await expect(app.feedback).toHaveText(`${p.sorteios.length} de 75 números sorteados.`);
             visao = 'Ordem';
             await conferir();
             resumo.eventos.add('recarregar a página');
           }
-          if (total === 18 && i % 7 === 5) {
+          if (quando(18, i % 7 === 5)) {
             await page.getByRole('button', { name: 'Mais perto' }).click();
             await expect(page.getByRole('button', { name: 'Mais perto' })).toHaveAttribute('aria-pressed', 'true');
             await conferir();
             await page.getByRole('button', { name: 'Cartelas', exact: true }).click();
             resumo.eventos.add('ordenar por proximidade');
           }
-          if (total === 20) {
+          if (quando(20)) {
             const alvo = p.sorteios[4];
             if (visao !== 'Ordem') {
               await app.verPainel('Ordem');

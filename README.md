@@ -15,7 +15,12 @@ Ainda não é uma plataforma genérica: as cartelas, os prêmios e as regras for
   3. R$ 1.500,00
   4. Smart TV 43"
   5. Moto 0 km
-- **Adicionar** cadastra outras cartelas (número, nome e os 24 números, com validação das colunas B, I, N, G e O). **Editar números e jogos** corrige uma cartela ou a exclui.
+- **Adicionar cartela ou jogo avulso** (na tela inicial, na tela de novo jogo e dentro da partida) cadastra à mão e salva no aparelho:
+  - **Cartela do Show:** os 5 jogos dos prêmios, com os mesmos números (como na cartela impressa) ou números diferentes por jogo.
+  - **Jogo avulso:** um ou mais jogos com nome livre (ex.: binguinho), cada um com seus números.
+  - Os 24 números podem ser digitados um a um ou todos de uma vez (linha por linha). As colunas B, I, N, G e O são validadas.
+  - **Salvar e jogar** já abre o novo jogo com a cartela selecionada; com uma partida em andamento, **Salvar e incluir na partida** coloca os jogos nela na hora, já marcando os números sorteados até ali.
+- **Editar números e jogos** corrige uma cartela (as correções valem também para a partida em andamento) ou a exclui.
 - Partida em andamento (continuar ou finalizar), histórico de partidas finalizadas e backup em arquivo JSON.
 
 ### Iniciar jogo
@@ -83,7 +88,7 @@ O build gera um único `dist/index.html` com todo o JavaScript e CSS embutidos, 
 ### Testes de ponta a ponta
 
 - `tests/e2e/simulacao.spec.ts`: simula **20 partidas para cada uma das 3 cartelas** usando o campo de número como um usuário. Depois de cada número a mensagem do app e o aviso de BINGO são conferidos, e a cada 10 números (e depois de cada ação especial) a tela inteira é comparada com um oráculo independente (`tests/e2e/oracle.ts`, que reescreve as regras dos 23 modos de outra forma). Passa por: seleção por rodada, por cartela e jogo a jogo; os 23 modos; Enter, botão Marcar e painel 1 a 75; formatos `7`, `07`, `B7`, `b-07`; números inválidos e repetidos; desfazer; remover número (cancelando e confirmando); recarregar a página; sair e continuar; editar modos no meio da partida; renomear cartela; ordenar por proximidade; som e tela ligada; finalizar pela partida e pelo início; histórico; reabrir partida.
-- `tests/e2e/fluxos.spec.ts`: cadastro, validação, renomeação, edição e exclusão de cartelas; backup; migração de dados antigos; botão voltar e endereços inválidos; sincronização entre abas; PWA (manifesto, ícones, service worker, uso offline e convite de instalação, inclusive a dica do iPhone); layout em 360px sem rolagem lateral; interface sem emojis, setas ou travessões.
+- `tests/e2e/fluxos.spec.ts`: cadastro, validação, renomeação, edição e exclusão de cartelas; cadastro manual de jogo avulso e de cartela com números diferentes por jogo, com Salvar e jogar e inclusão na partida em andamento; backup; migração de dados antigos; botão voltar e endereços inválidos; sincronização entre abas; PWA (manifesto, ícones, service worker, uso offline e convite de instalação, inclusive a dica do iPhone); layout em 360px sem rolagem lateral; interface sem emojis, setas ou travessões.
 
 ### Estrutura
 

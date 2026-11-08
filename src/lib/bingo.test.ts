@@ -5,24 +5,31 @@ import type { MatchGame } from '../types';
 import { drawPositions, evaluateMatch, evaluateMode, formatBall, letterFor, parseBall, validateGrid } from './bingo';
 
 const card = DEFAULT_CARDS.find((c) => c.number === '01065')!;
+const grid = card.games[0].grid;
 const game: MatchGame = {
   key: 'k1',
   cardId: card.id,
   cardNumber: card.number,
   cardName: card.name,
+  gameId: 'bicicleta',
   prizeId: 'bicicleta',
-  grid: card.grid,
+  gameName: 'Bicicleta Aro 26',
+  grid,
 };
 
 const mode = (id: string) => getMode(id)!;
-const evalWith = (id: string, draws: number[]) => evaluateMode(card.grid, mode(id), drawPositions(draws));
+const evalWith = (id: string, draws: number[]) => evaluateMode(grid, mode(id), drawPositions(draws));
 
 describe('cartelas padrão', () => {
   it('respeitam as faixas de cada coluna e não repetem números', () => {
     for (const c of DEFAULT_CARDS) {
-      expect(c.grid).toHaveLength(25);
-      expect(c.grid[12]).toBe(0);
-      expect(validateGrid(c.grid).size).toBe(0);
+      expect(c.games.map((g) => g.prizeId)).toEqual(['bicicleta', 'smartphone', 'dinheiro', 'tv', 'moto']);
+      for (const g of c.games) {
+        expect(g.grid).toEqual(c.games[0].grid);
+        expect(g.grid).toHaveLength(25);
+        expect(g.grid[12]).toBe(0);
+        expect(validateGrid(g.grid).size).toBe(0);
+      }
     }
   });
 });
@@ -82,7 +89,7 @@ describe('modos', () => {
   });
 
   it('cartela cheia precisa dos 24 números', () => {
-    const numbers = card.grid.filter((n) => n !== 0);
+    const numbers = grid.filter((n) => n !== 0);
     const almost = evalWith('cartela-cheia', numbers.slice(0, 23));
     expect(almost.completedAt).toBeNull();
     expect(almost.needed).toBe(1);
@@ -118,11 +125,11 @@ describe('modos', () => {
 
 describe('validação da grade', () => {
   it('aponta números fora da coluna e repetidos', () => {
-    const grid = [...card.grid] as (number | null)[];
-    grid[0] = 20; // fora da faixa B
-    grid[6] = 25; // repete o 25 da célula 1
-    grid[24] = null;
-    const errors = validateGrid(grid);
+    const invalid = [...grid] as (number | null)[];
+    invalid[0] = 20; // fora da faixa B
+    invalid[6] = 25; // repete o 25 da célula 1
+    invalid[24] = null;
+    const errors = validateGrid(invalid);
     expect(errors.get(0)).toMatch(/coluna B/);
     expect(errors.get(6)).toBe('Número repetido');
     expect(errors.get(1)).toBe('Número repetido');

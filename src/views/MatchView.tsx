@@ -9,12 +9,15 @@ import {
   IconGrid,
   IconHome,
   IconList,
+  IconPlus,
   IconSound,
   IconSun,
   IconTrash,
   IconTrophy,
 } from '../components/Icons';
-import { getPrize } from '../data/event';
+import { roundOf } from '../data/event';
+import { CardEditor } from '../components/CardEditor';
+import { toMatchGame } from '../lib/cards';
 import { getMode } from '../data/modes';
 import {
   LETTERS,
@@ -31,11 +34,12 @@ import {
 import { playMark, playWin, unlockAudio, vibrate } from '../lib/feedback';
 import { useWakeLock } from '../lib/useWakeLock';
 import type { Action } from '../state';
-import type { Match, Settings } from '../types';
+import type { Card, Match, Settings } from '../types';
 import { formatDateTime } from './HomeView';
 
 interface MatchViewProps {
   match: Match;
+  cards: Card[];
   readOnly: boolean;
   settings: Settings;
   canReopen: boolean;
@@ -47,13 +51,14 @@ type Feedback = { kind: 'hit' | 'miss' | 'error' | 'win' | 'info'; text: string 
 
 const modeName = (id: string) => getMode(id)?.name ?? id;
 
-export function MatchView({ match, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
+export function MatchView({ match, cards, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
   const confirm = useConfirm();
   const evaluation = useMemo(() => evaluateMatch(match), [match]);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [celebrate, setCelebrate] = useState<Achievement[] | null>(null);
   const [drawView, setDrawView] = useState<'order' | 'board'>('order');
+  const [adding, setAdding] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useWakeLock(!readOnly && settings.keepAwake);
@@ -332,8 +337,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                 >
                   <span className="achievement-mode">{modeName(a.modeId)}</span>
                   <span className="achievement-detail">
-                    {cardLabel(a.game.cardName, a.game.cardNumber)} (nº {a.game.cardNumber}),{' '}
-                    {getPrize(a.game.prizeId).name}
+                    {cardLabel(a.game.cardName, a.game.cardNumber)} (nº {a.game.cardNumber}), {a.game.gameName}
                   </span>
                   <span className="achievement-when">
                     {a.completedAt}º número, {formatBall(a.ball)}
@@ -366,7 +370,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                 <li key={`${result.game.key}-${mode.modeId}`}>
                   <strong>{modeName(mode.modeId)}</strong>
                   <span>
-                    {cardLabel(result.game.cardName, result.game.cardNumber)}, {getPrize(result.game.prizeId).name}
+                    {cardLabel(result.game.cardName, result.game.cardNumber)}, {result.game.gameName}
                   </span>
                   <span className="pending-numbers">{mode.oneAway.map(formatBall).join(', ')}</span>
                 </li>
@@ -501,7 +505,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
           <p className="muted small modes-line">Valendo: {match.modeIds.map(modeName).join(', ')}</p>
           <div className="card-groups">
             {groups.map((group) => (
-              <section key={group.cardId} className="card-group" data-card={group.first.cardNumber}>
+              <section key={group.cardId} className="card-group" data-card={group.first.cardNumber || group.cardId}>
                 <header className="card-group-head">
                   <CardName
                     name={group.first.cardName}
@@ -538,6 +542,10 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
             </>
           ) : (
             <>
+              <button type="button" className="btn btn-secondary" onClick={() => setAdding(true)}>
+                <IconPlus size={18} />
+                Adicionar cartela ou jogo
+              </button>
               <button type="button" className="btn btn-secondary" onClick={() => navigate('/partida/editar')}>
                 <IconEdit size={18} />
                 Editar jogos e modos
@@ -550,6 +558,28 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
           )}
         </section>
       </main>
+
+      {adding && (
+        <CardEditor
+          card={null}
+          existingNumbers={cards.map((c) => c.number).filter(Boolean)}
+          playLabel="Salvar e incluir na partida"
+          onClose={() => setAdding(false)}
+          onSave={(card, intent) => {
+            dispatch({ type: 'card/save', card });
+            if (intent === 'play') {
+              dispatch({ type: 'match/add-games', games: card.games.map((g) => toMatchGame(card, g)) });
+              setFeedback({
+                kind: 'info',
+                text: `${cardLabel(card.name, card.number)} incluída na partida com ${card.games.length} jogo(s).`,
+              });
+            } else {
+              setFeedback({ kind: 'info', text: `${cardLabel(card.name, card.number)} salva nas cartelas.` });
+            }
+            setAdding(false);
+          }}
+        />
+      )}
 
       <Modal
         open={celebrate !== null}
@@ -572,7 +602,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
                 <span>
                   {cardLabel(a.game.cardName, a.game.cardNumber)} (nº {a.game.cardNumber})
                 </span>
-                <span>{getPrize(a.game.prizeId).name}</span>
+                <span>{a.game.gameName}</span>
               </li>
             ))}
           </ul>
@@ -585,7 +615,7 @@ export function MatchView({ match, readOnly, settings, canReopen, dispatch, navi
 
 function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: number | null; draws: number[] }) {
   const { game, modes, marked } = result;
-  const prize = getPrize(game.prizeId);
+  const round = roundOf(game.prizeId);
   const won = modes.filter((m) => m.completedAt !== null);
   const winCells = new Set(won.flatMap((m) => m.winningCells ?? []));
   const targets = new Set(modes.flatMap((m) => m.oneAway));
@@ -595,9 +625,9 @@ function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: n
   return (
     <article className={`game-card ${status}`} data-game={game.key} data-marked={marked.size}>
       <header className="game-card-head">
-        <span className="prize-tag">
-          <span className="chip-round">{prize.round}</span>
-          {prize.name}
+        <span className={`prize-tag ${round ? '' : 'is-custom'}`}>
+          {round > 0 && <span className="chip-round">{round}</span>}
+          {game.gameName}
         </span>
         {won.length > 0 && (
           <span className="badge badge-gold">
@@ -611,7 +641,7 @@ function GameCard({ result, lastBall, draws }: { result: GameResult; lastBall: n
         lastBall={lastBall}
         winCells={winCells}
         targets={targets}
-        label={`Cartela ${game.cardNumber}, ${prize.name}`}
+        label={`${cardLabel(game.cardName, game.cardNumber)}, ${game.gameName}`}
       />
       <div className="game-card-count">
         {marked.size} de {totalNumbers} números marcados
