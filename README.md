@@ -40,7 +40,7 @@ Ainda não é uma plataforma genérica: as cartelas, os prêmios e as regras for
 - Quando todos os padrões que valem são fechados, a partida continua aberta: dá para seguir marcando, incluir outros modos (por exemplo, cartela cheia depois da quina) ou finalizar.
 - O painel **Falta 1 número** mostra quais números completam algum modo no próximo sorteio.
 - Lista dos números sorteados em ordem ou em painel de 1 a 75 (o painel também permite marcar tocando no número).
-- **Visão compacta** (botão na lista de jogos): todos os jogos numa grade única, com cartelas menores, letras menores e margens mínimas, para ver todos de uma vez (em celular, 3 por linha). Cada modo vira um selo com quanto falta para fechar (dourado quando já fechou). A página continua rolando quando há muitos jogos, e a escolha fica salva.
+- **Visão compacta** (botão na lista de jogos): todos os jogos numa grade bem densa, com cartelas pequenas, números menores, sem a linha B I N G O e com margens mínimas, para ver todos de uma vez. Num celular comum ficam 5 por linha e os 15 jogos das 3 cartelas cabem numa tela; em telas de 360px ficam 4 por linha. Cada modo vira um selo com quanto falta para fechar (dourado quando já fechou). A página continua rolando quando não cabe tudo, e a escolha fica salva.
 - Desfazer o último número ou remover qualquer número sorteado; as marcações e conquistas são recalculadas.
 - É possível editar os jogos e modos com a partida em andamento.
 - A partida continua mesmo depois de completar algum modo, até você decidir finalizá-la. Partidas finalizadas podem ser reabertas pelo histórico.

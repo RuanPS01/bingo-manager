@@ -687,12 +687,15 @@ function GameCard({ result, lastBall, draws, compact = false }: GameCardProps) {
   if (compact) {
     return (
       <article className={`game-card game-card-compact ${status}`} data-game={game.key} data-marked={marked.size}>
-        <header className="gc-head">
+        <header className="gc-head" title={label}>
           <strong className="gc-name">{cardLabel(game.cardName, game.cardNumber)}</strong>
-          <span className="gc-game">
-            {round > 0 && <span className="chip-round">{round}</span>}
+          {round > 0 ? (
+            <span className="chip-round" aria-label={game.gameName}>
+              {round}
+            </span>
+          ) : (
             <span className="gc-game-name">{game.gameName}</span>
-          </span>
+          )}
         </header>
         <BingoGrid
           grid={game.grid}
@@ -720,7 +723,6 @@ function GameCard({ result, lastBall, draws, compact = false }: GameCardProps) {
                     : `${modeName(m.modeId)}: faltam ${m.needed}`
                 }
               >
-                {done && <IconTrophy size={10} />}
                 {mode?.short ?? modeName(m.modeId)}
                 {!done && <b>{m.needed}</b>}
               </li>

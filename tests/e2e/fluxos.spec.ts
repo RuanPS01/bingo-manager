@@ -292,7 +292,7 @@ test('a partida continua depois de fechar um padrão, sem precisar fechar o avis
   await expect(page.locator('.history-item')).toHaveCount(1);
 });
 
-test('visão compacta mostra todos os jogos da rodada de uma vez', async ({ page }) => {
+test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', async ({ page }) => {
   const app = new BingoApp(page);
   await app.abrirInicio();
   await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
@@ -339,12 +339,21 @@ test('visão compacta mostra todos os jogos da rodada de uma vez', async ({ page
   await page.reload();
   await expect(page.locator('.games-grid-compact .game-card')).toHaveCount(3);
 
-  // em tela pequena e com muitos jogos, sem rolagem lateral e com rolagem vertical
-  await page.setViewportSize({ width: 360, height: 640 });
+  // com os 15 jogos (5 prêmios das 3 cartelas), todos cabem de uma vez num celular comum
   await page.getByRole('button', { name: 'Editar jogos e modos' }).click();
   await page.getByRole('button', { name: 'Todos', exact: true }).click();
   await page.locator('.action-bar').getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(page.locator('.games-grid-compact .game-card')).toHaveCount(15);
+  expect(await cabem()).toBe(true);
+  const colunas = await page.evaluate(
+    () =>
+      new Set([...document.querySelectorAll('.game-card')].map((el) => Math.round(el.getBoundingClientRect().left)))
+        .size,
+  );
+  expect(colunas).toBe(5);
+
+  // em tela bem pequena: sem rolagem lateral, e a rolagem vertical continua para ver o resto
+  await page.setViewportSize({ width: 360, height: 640 });
   expect(await cabem()).toBe(false);
   const medidas = await page.evaluate(() => ({
     largura: document.documentElement.scrollWidth,
@@ -354,6 +363,8 @@ test('visão compacta mostra todos os jogos da rodada de uma vez', async ({ page
   }));
   expect(medidas.largura).toBe(medidas.tela);
   expect(medidas.altura).toBeGreaterThan(medidas.alturaTela);
+  await page.locator('.game-card').last().scrollIntoViewIfNeeded();
+  await expect(page.locator('.game-card').last()).toBeInViewport();
 
   await app.visaoCompacta(false);
   await expect(page.locator('.card-group')).toHaveCount(3);

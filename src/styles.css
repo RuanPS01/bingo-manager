@@ -2216,7 +2216,7 @@ button.ball-chip:disabled {
   margin: 0 0 12px;
 }
 
-/* Visão compacta dos jogos da partida */
+/* Visão compacta dos jogos da partida: grade bem densa, inclusive no celular */
 
 .view-toggle {
   background: #fff;
@@ -2231,28 +2231,31 @@ button.ball-chip:disabled {
 }
 
 .games-grid-compact {
-  grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(min(66px, 100%), 1fr));
+  gap: 4px;
 }
 
 .game-card-compact {
-  padding: 5px;
-  border-radius: 10px;
-  border-width: 2px;
+  padding: 3px;
+  border-radius: 7px;
+  border-width: 1.5px;
   box-shadow: 0 1px 2px rgba(16, 48, 107, 0.08);
   min-width: 0;
 }
 
 .gc-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
-  margin-bottom: 3px;
-  line-height: 1.15;
+  margin-bottom: 2px;
+  line-height: 1.1;
 }
 
 .gc-name {
-  font-size: 0.76rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.62rem;
   font-weight: 800;
   color: var(--blue-900);
   white-space: nowrap;
@@ -2260,27 +2263,23 @@ button.ball-chip:disabled {
   text-overflow: ellipsis;
 }
 
-.gc-game {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-  font-size: 0.64rem;
-  font-weight: 700;
-  color: var(--green-700);
+.gc-head .chip-round {
+  min-width: 12px;
+  height: 12px;
+  padding: 0 2px;
+  font-size: 0.52rem;
+  background: var(--green-700);
+  color: #fff;
 }
 
 .gc-game-name {
+  max-width: 50%;
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: var(--green-700);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.gc-game .chip-round {
-  min-width: 13px;
-  height: 13px;
-  padding: 0 3px;
-  font-size: 0.56rem;
 }
 
 .bingo-grid-xs,
@@ -2288,20 +2287,21 @@ button.ball-chip:disabled {
   gap: 1px;
 }
 
-.bingo-grid-xs .bingo-letter {
-  font-size: 0.52rem;
-  line-height: 1.2;
+/* sem a linha B I N G O: a posição das colunas já é conhecida */
+.bingo-grid-xs .bingo-head {
+  display: none;
 }
 
 .bingo-grid-xs .bingo-cell {
-  font-size: 0.66rem;
+  font-size: 0.56rem;
   font-weight: 700;
   border-width: 1px;
-  border-radius: 3px;
+  border-radius: 2px;
+  letter-spacing: -0.02em;
 }
 
 .bingo-grid-xs .bingo-cell.is-last {
-  outline-width: 2px;
+  outline-width: 1.5px;
   outline-offset: 0;
 }
 
@@ -2312,22 +2312,25 @@ button.ball-chip:disabled {
 .mode-progress.is-compact {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 4px;
+  gap: 2px;
+  margin-top: 2px;
 }
 
 .mode-progress.is-compact li {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 1px 5px;
+  gap: 2px;
+  padding: 0 3px;
   border: none;
-  border-radius: 999px;
+  border-radius: 4px;
   background: var(--blue-50);
   color: var(--blue-800);
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .mode-progress.is-compact li b {
@@ -2346,11 +2349,23 @@ button.ball-chip:disabled {
 
 @media (min-width: 760px) {
   .games-grid-compact {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 6px;
+  }
+
+  .game-card-compact {
+    padding: 5px;
+  }
+
+  .gc-name {
+    font-size: 0.74rem;
   }
 
   .bingo-grid-xs .bingo-cell {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
+  }
+
+  .mode-progress.is-compact li {
+    font-size: 0.6rem;
   }
 }
