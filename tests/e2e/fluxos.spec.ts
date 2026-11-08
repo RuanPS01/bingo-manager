@@ -527,6 +527,78 @@ test('visão compacta: escolher a quantidade de colunas', async ({ page }) => {
   expect(salvo.settings.compactColumns).toBe(0);
 });
 
+test('números sorteados: recolher em uma linha com rolagem horizontal', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  const app = new BingoApp(page);
+  await app.abrirInicio();
+  await iniciarPartida(page, '01065');
+  for (const n of [3, 20, 50]) await marcar(app, n);
+
+  const card = page.locator('.draws-panel');
+  const botao = card.locator('.panel-head button');
+  const faixa = card.locator('.ball-strip');
+  const linhas = () =>
+    card.evaluate(
+      (el) =>
+        new Set([...el.querySelectorAll('.ball-chip')].map((c) => Math.round(c.getBoundingClientRect().top))).size,
+    );
+  const altura = () => card.evaluate((el) => Math.round(el.getBoundingClientRect().height));
+  const maisNovoVisivel = () =>
+    faixa.evaluate((el) => {
+      const f = el.querySelector('.ball-chip')!.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return el.scrollLeft === 0 && f.left >= r.left - 1 && f.right <= r.right + 1;
+    });
+
+  // por padrão o card aparece expandido
+  await expect(botao).toHaveText('Recolher');
+  await expect(botao).toHaveAttribute('aria-expanded', 'true');
+  await expect(card.getByRole('group', { name: 'Forma de exibição' })).toBeVisible();
+
+  // recolhido: só a linha de números
+  await botao.click();
+  await expect(botao).toHaveText('Expandir');
+  await expect(botao).toHaveAttribute('aria-expanded', 'false');
+  await expect(card.getByRole('group', { name: 'Forma de exibição' })).toHaveCount(0);
+  await expect(faixa.locator('.ball-chip')).toHaveCount(3);
+  const alturaRecolhido = await altura();
+
+  // com muitos números continua numa linha só, com a mesma altura e rolagem horizontal
+  for (const n of [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25])
+    await marcar(app, n);
+  await expect(faixa.locator('.ball-chip')).toHaveCount(26);
+  expect(await linhas()).toBe(1);
+  expect(await altura()).toBe(alturaRecolhido);
+  expect(await faixa.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await expect(faixa).toHaveClass(/has-more/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
+  await expect(faixa.locator('.ball-chip').first()).toHaveAttribute('data-ball', '25');
+  expect(await maisNovoVisivel()).toBe(true);
+
+  // depois de arrastar para o lado, um novo número volta a linha para o começo
+  await faixa.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+  await expect(faixa).not.toHaveClass(/has-more/);
+  await marcar(app, 26);
+  await expect(faixa.locator('.ball-chip').first()).toHaveAttribute('data-ball', '26');
+  await expect.poll(maisNovoVisivel).toBe(true);
+
+  // a ficha recolhida continua permitindo remover o número
+  await faixa.locator('.ball-chip[data-ball="3"]').click();
+  await expect(app.modal.getByRole('heading')).toHaveText('Remover B-03?');
+  await app.confirmar('Cancelar');
+
+  // a escolha fica salva
+  await page.reload();
+  await expect(botao).toHaveText('Expandir');
+  await expect(faixa.locator('.ball-chip')).toHaveCount(27);
+
+  // expandido de novo: várias linhas e a escolha entre ordem e painel
+  await botao.click();
+  await expect(card.getByRole('group', { name: 'Forma de exibição' })).toBeVisible();
+  expect(await linhas()).toBeGreaterThan(1);
+  expect(await altura()).toBeGreaterThan(alturaRecolhido);
+});
+
 test('exporta e importa backup', async ({ page }) => {
   const app = new BingoApp(page);
   await app.abrirInicio();
