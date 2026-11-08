@@ -72,6 +72,7 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
   const [banner, setBanner] = useState<{ at: number; items: Achievement[] } | null>(null);
   const [drawView, setDrawView] = useState<'order' | 'board'>('order');
   const [adding, setAdding] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useWakeLock(!readOnly && settings.keepAwake);
@@ -81,6 +82,19 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
   }, [readOnly]);
 
   const lastBall = match.draws[match.draws.length - 1] ?? null;
+
+  // Na linha recolhida, mostra sempre o número mais recente (fica no começo)
+  // e esmaece a borda direita enquanto houver mais números para arrastar.
+  const [stripHasMore, setStripHasMore] = useState(false);
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    el.scrollTo({ left: 0 });
+    const update = () => setStripHasMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    return () => el.removeEventListener('scroll', update);
+  }, [match.draws.length, settings.drawsCollapsed]);
   const myNumbers = useMemo(() => new Set(match.games.flatMap((g) => g.grid)), [match.games]);
 
   const pending = useMemo(
@@ -240,6 +254,22 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
     dispatch({ type: 'match/reopen', id: match.id });
     navigate('/partida');
   };
+
+  // Fichas dos números sorteados, do mais recente para o mais antigo.
+  const drawChips = [...match.draws].reverse().map((n, i) => (
+    <button
+      type="button"
+      key={n}
+      className={`ball-chip ${myNumbers.has(n) ? 'ball-chip-hit' : ''} ${i === 0 ? 'ball-chip-last' : ''}`}
+      onClick={() => removeBall(n)}
+      disabled={readOnly}
+      data-ball={n}
+      title={readOnly ? undefined : 'Toque para remover'}
+    >
+      <small>{match.draws.length - i}º</small>
+      {formatBall(n)}
+    </button>
+  ));
 
   // Mantém o foco no campo ao tocar nos botões (evita fechar o teclado do celular).
   const keepFocus = (e: MouseEvent) => e.preventDefault();
@@ -474,7 +504,7 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
           </section>
         )}
 
-        <section className="panel draws-panel">
+        <section className={`panel draws-panel ${settings.drawsCollapsed ? 'is-collapsed' : ''}`}>
           <header className="panel-head">
             <div>
               <h2>Números sorteados</h2>
@@ -482,95 +512,105 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
                 {match.draws.length} de {MAX_BALL}
               </span>
             </div>
-            <div className="segmented" role="group" aria-label="Forma de exibição">
-              <button
-                type="button"
-                className={drawView === 'order' ? 'is-on' : ''}
-                aria-pressed={drawView === 'order'}
-                onClick={() => setDrawView('order')}
-              >
-                <IconList size={16} />
-                Ordem
-              </button>
-              <button
-                type="button"
-                className={drawView === 'board' ? 'is-on' : ''}
-                aria-pressed={drawView === 'board'}
-                onClick={() => setDrawView('board')}
-              >
-                <IconGrid size={16} />
-                Painel
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              aria-expanded={!settings.drawsCollapsed}
+              aria-controls="numeros-sorteados"
+              onClick={() => dispatch({ type: 'settings', patch: { drawsCollapsed: !settings.drawsCollapsed } })}
+            >
+              {settings.drawsCollapsed ? 'Expandir' : 'Recolher'}
+            </button>
           </header>
 
-          {drawView === 'order' ? (
-            match.draws.length === 0 ? (
-              <p className="empty">Nenhum número sorteado ainda.</p>
+          <div id="numeros-sorteados">
+            {settings.drawsCollapsed ? (
+              // Recolhido: só a linha de números, com rolagem horizontal e altura fixa.
+              match.draws.length === 0 ? (
+                <p className="empty empty-inline">Nenhum número sorteado ainda.</p>
+              ) : (
+                <div className={`ball-chips ball-strip ${stripHasMore ? 'has-more' : ''}`} ref={stripRef}>
+                  {drawChips}
+                </div>
+              )
             ) : (
               <>
-                <div className="ball-chips">
-                  {[...match.draws].reverse().map((n, i) => (
-                    <button
-                      type="button"
-                      key={n}
-                      className={`ball-chip ${myNumbers.has(n) ? 'ball-chip-hit' : ''} ${i === 0 ? 'ball-chip-last' : ''}`}
-                      onClick={() => removeBall(n)}
-                      disabled={readOnly}
-                      data-ball={n}
-                      title={readOnly ? undefined : 'Toque para remover'}
-                    >
-                      <small>{match.draws.length - i}º</small>
-                      {formatBall(n)}
-                    </button>
-                  ))}
+                <div className="segmented draws-view" role="group" aria-label="Forma de exibição">
+                  <button
+                    type="button"
+                    className={drawView === 'order' ? 'is-on' : ''}
+                    aria-pressed={drawView === 'order'}
+                    onClick={() => setDrawView('order')}
+                  >
+                    <IconList size={16} />
+                    Ordem
+                  </button>
+                  <button
+                    type="button"
+                    className={drawView === 'board' ? 'is-on' : ''}
+                    aria-pressed={drawView === 'board'}
+                    onClick={() => setDrawView('board')}
+                  >
+                    <IconGrid size={16} />
+                    Painel
+                  </button>
                 </div>
-                {!readOnly && (
-                  <p className="hint">
-                    Destacados: números que estão nas suas cartelas. Toque em um número para removê-lo.
-                  </p>
+
+                {drawView === 'order' ? (
+                  match.draws.length === 0 ? (
+                    <p className="empty">Nenhum número sorteado ainda.</p>
+                  ) : (
+                    <>
+                      <div className="ball-chips">{drawChips}</div>
+                      {!readOnly && (
+                        <p className="hint">
+                          Destacados: números que estão nas suas cartelas. Toque em um número para removê-lo.
+                        </p>
+                      )}
+                    </>
+                  )
+                ) : (
+                  <>
+                    <div className="ball-board">
+                      {LETTERS.map((letter, c) => (
+                        <div className="ball-board-row" key={letter}>
+                          <span className="ball-board-letter">{letter}</span>
+                          {Array.from({ length: 15 }, (_, k) => {
+                            const n = c * 15 + k + 1;
+                            const drawn = match.draws.includes(n);
+                            const classes = [
+                              drawn ? 'is-drawn' : '',
+                              myNumbers.has(n) ? 'is-mine' : '',
+                              !drawn && targetNumbers.has(n) ? 'is-target' : '',
+                            ];
+                            return (
+                              <button
+                                type="button"
+                                key={n}
+                                className={classes.join(' ')}
+                                disabled={readOnly}
+                                onClick={() => (drawn ? removeBall(n) : drawBall(n))}
+                                data-ball={n}
+                                aria-label={`${formatBall(n)}${drawn ? ', sorteado' : ''}`}
+                              >
+                                {n}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                    {!readOnly && (
+                      <p className="hint">
+                        Toque em um número para marcar como sorteado (ou para remover). Sublinhados e em azul: números
+                        das suas cartelas. Em cinza: sorteados que não estão nelas.
+                      </p>
+                    )}
+                  </>
                 )}
               </>
-            )
-          ) : (
-            <>
-              <div className="ball-board">
-                {LETTERS.map((letter, c) => (
-                  <div className="ball-board-row" key={letter}>
-                    <span className="ball-board-letter">{letter}</span>
-                    {Array.from({ length: 15 }, (_, i) => {
-                      const n = c * 15 + i + 1;
-                      const drawn = match.draws.includes(n);
-                      const classes = [
-                        drawn ? 'is-drawn' : '',
-                        myNumbers.has(n) ? 'is-mine' : '',
-                        !drawn && targetNumbers.has(n) ? 'is-target' : '',
-                      ];
-                      return (
-                        <button
-                          type="button"
-                          key={n}
-                          className={classes.join(' ')}
-                          disabled={readOnly}
-                          onClick={() => (drawn ? removeBall(n) : drawBall(n))}
-                          data-ball={n}
-                          aria-label={`${formatBall(n)}${drawn ? ', sorteado' : ''}`}
-                        >
-                          {n}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-              {!readOnly && (
-                <p className="hint">
-                  Toque em um número para marcar como sorteado (ou para remover). Sublinhados e em azul: números das
-                  suas cartelas. Em cinza: sorteados que não estão nelas.
-                </p>
-              )}
-            </>
-          )}
+            )}
+          </div>
         </section>
 
         <section>

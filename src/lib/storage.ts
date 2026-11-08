@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepAwake: true,
   hideInstallTip: false,
   compactView: false,
+  drawsCollapsed: false,
   compactColumns: 0,
   theme: 'auto',
 };

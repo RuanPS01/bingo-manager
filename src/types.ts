@@ -66,6 +66,8 @@ export interface Settings {
   hideInstallTip: boolean;
   /** Jogos da partida em grade compacta, para ver todos de uma vez. */
   compactView: boolean;
+  /** Card de números sorteados recolhido em uma linha. */
+  drawsCollapsed: boolean;
   /** Colunas da visão compacta: 0 = automático; 2 a 8 = quantidade fixa. */
   compactColumns: number;
   /** Tema: automático (segue o sistema), claro ou escuro. */

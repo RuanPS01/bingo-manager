@@ -79,7 +79,16 @@ export class BingoApp {
     else await this.page.getByRole('button', { name: 'Marcar', exact: true }).click();
   }
 
+  /** Recolhe ou expande o card de números sorteados. */
+  async numerosRecolhidos(recolhido: boolean) {
+    const botao = this.page.locator('.draws-panel .panel-head button');
+    if ((await botao.getAttribute('aria-expanded')) !== String(!recolhido)) await botao.click();
+    await expect(botao).toHaveAttribute('aria-expanded', String(!recolhido));
+  }
+
   async verPainel(visao: 'Ordem' | 'Painel') {
+    // a escolha entre ordem e painel só aparece com o card expandido
+    await this.numerosRecolhidos(false);
     const botao = this.page.locator('.draws-panel .segmented button', { hasText: visao });
     if ((await botao.getAttribute('aria-pressed')) !== 'true') await botao.click();
   }

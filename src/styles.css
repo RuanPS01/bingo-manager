@@ -1304,6 +1304,9 @@ h3 {
 
 .match-title small {
   display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -2490,4 +2493,44 @@ button.ball-chip:disabled {
 
 .pref-label {
   font-weight: 700;
+}
+
+/* Números sorteados: recolher em uma linha com rolagem horizontal */
+
+.draws-view {
+  margin-bottom: 10px;
+}
+
+.draws-panel.is-collapsed {
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+
+.draws-panel.is-collapsed .panel-head {
+  margin-bottom: 6px;
+}
+
+.ball-strip {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  /* espaço para o contorno dourado da ficha mais recente não ser cortado */
+  padding: 3px 3px 6px;
+  margin: 0 -3px;
+}
+
+.ball-strip .ball-chip {
+  flex: none;
+}
+
+/* esmaece a borda direita quando há mais números para arrastar */
+.ball-strip.has-more {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+
+.empty-inline {
+  padding: 8px 12px;
 }
