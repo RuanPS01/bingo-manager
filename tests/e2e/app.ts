@@ -113,6 +113,73 @@ export class BingoApp {
     });
   }
 
+  /**
+   * Textos visíveis com contraste abaixo de 4,5 (WCAG AA) contra o fundo real
+   * atrás deles. Textos sobre gradiente (cabeçalhos) não são medidos.
+   */
+  async textosComBaixoContraste(): Promise<string[]> {
+    return this.page.evaluate(() => {
+      type Cor = { r: number; g: number; b: number; a: number };
+      const ler = (c: string): Cor | null => {
+        const m = c.match(/rgba?\(([^)]+)\)/);
+        if (!m) return null;
+        const p = m[1]
+          .split(/[ ,/]+/)
+          .filter(Boolean)
+          .map(Number);
+        return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+      };
+      const luz = ({ r, g, b }: Cor) => {
+        const f = (v: number) => {
+          v /= 255;
+          return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+      };
+      const misturar = (fg: Cor, bg: Cor): Cor => ({
+        r: fg.r * fg.a + bg.r * (1 - fg.a),
+        g: fg.g * fg.a + bg.g * (1 - fg.a),
+        b: fg.b * fg.a + bg.b * (1 - fg.a),
+        a: 1,
+      });
+      const fundo = (el: Element): Cor | null => {
+        const camadas: Cor[] = [];
+        for (let e: Element | null = el; e; e = e.parentElement) {
+          const cs = getComputedStyle(e);
+          if (cs.backgroundImage && cs.backgroundImage !== 'none') return null;
+          const c = ler(cs.backgroundColor);
+          if (c && c.a > 0) {
+            camadas.push(c);
+            if (c.a >= 1) break;
+          }
+        }
+        let base: Cor = { r: 255, g: 255, b: 255, a: 1 };
+        for (const c of camadas.reverse()) base = misturar(c, base);
+        return base;
+      };
+      const problemas: string[] = [];
+      const vistos = new Set<Element>();
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const el = walker.currentNode.parentElement;
+        const texto = walker.currentNode.textContent?.trim();
+        if (!el || !texto || vistos.has(el) || el.classList.contains('sr-only')) continue;
+        vistos.add(el);
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        if (r.width === 0 || r.height === 0 || cs.visibility === 'hidden' || Number(cs.opacity) < 0.6) continue;
+        const bg = fundo(el);
+        const fgBase = ler(cs.color);
+        if (!bg || !fgBase) continue;
+        const fg = misturar(fgBase, bg);
+        const [a, b] = [luz(fg), luz(bg)];
+        const razao = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        if (razao < 4.5) problemas.push(`${razao.toFixed(2)} "${texto.slice(0, 30)}" (${el.className || el.tagName})`);
+      }
+      return problemas;
+    });
+  }
+
   /** Liga ou desliga a visão compacta dos jogos da partida. */
   async visaoCompacta(ligada: boolean) {
     const botao = this.page.getByRole('button', { name: 'Visão compacta' });

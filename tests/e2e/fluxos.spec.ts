@@ -373,6 +373,86 @@ test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', a
   await expect(page.locator('.card-group')).toHaveCount(3);
 });
 
+test.describe('tema escuro', () => {
+  test.use({ colorScheme: 'dark' });
+
+  test('automático, claro e escuro, sem piscar ao abrir e com bom contraste', async ({ page }) => {
+    // guarda o tema aplicado antes de o app carregar (script no index.html)
+    await page.addInitScript(() => {
+      document.addEventListener('readystatechange', () => {
+        if (document.readyState === 'interactive') {
+          (window as unknown as { temaInicial?: string }).temaInicial = document.documentElement.dataset.theme;
+        }
+      });
+    });
+    const app = new BingoApp(page);
+    const tema = () => page.evaluate(() => document.documentElement.dataset.theme);
+    const temaInicial = () => page.evaluate(() => (window as unknown as { temaInicial?: string }).temaInicial);
+    const fundoEscuro = () =>
+      page.evaluate(() => {
+        const [r, g, b] = getComputedStyle(document.body).backgroundColor.match(/\d+/g)!.map(Number);
+        return r + g + b < 120;
+      });
+    const preferencia = page.getByRole('group', { name: 'Tema' });
+
+    // automático segue o sistema (escuro neste teste)
+    await app.abrirInicio();
+    expect(await tema()).toBe('dark');
+    expect(await temaInicial()).toBe('dark');
+    expect(await fundoEscuro()).toBe(true);
+    await expect(preferencia.getByRole('button', { name: 'Automático' })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]); // espera as transições de cor
+
+    // claro escolhido à mão vale mesmo com o sistema escuro, e já abre claro
+    await preferencia.getByRole('button', { name: 'Claro' }).click();
+    expect(await tema()).toBe('light');
+    expect(await fundoEscuro()).toBe(false);
+    await page.reload();
+    expect(await temaInicial()).toBe('light');
+    expect(await tema()).toBe('light');
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+
+    // escuro escolhido à mão
+    await preferencia.getByRole('button', { name: 'Escuro' }).click();
+    expect(await tema()).toBe('dark');
+    await page.reload();
+    expect(await temaInicial()).toBe('dark');
+
+    // automático acompanha a troca de tema do sistema
+    await preferencia.getByRole('button', { name: 'Automático' }).click();
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect.poll(tema).toBe('light');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect.poll(tema).toBe('dark');
+
+    // na partida: todas as telas legíveis no escuro, e botão rápido no topo
+    await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
+    await page.locator('.round-btn').first().click();
+    await app.escolherModo('quina');
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+    await page.locator('.action-bar').getByRole('button', { name: 'Iniciar jogo' }).click();
+    for (const n of [3, 20, 50, 6, 19, 41, 54, 68]) await app.digitar(String(n), 'enter');
+    await expect(app.avisoBingo).toBeVisible();
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+    await app.visaoCompacta(true);
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+    expect(await app.numerosForaDosCartoes()).toEqual([]);
+    await app.verPainel('Painel');
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+    await page.getByRole('button', { name: 'Adicionar cartela ou jogo' }).click();
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+    await app.modal.getByRole('button', { name: 'Cancelar', exact: true }).click();
+
+    await page.getByRole('button', { name: 'Usar tema claro' }).click();
+    expect(await tema()).toBe('light');
+    await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
+    await page.getByRole('button', { name: 'Usar tema escuro' }).click();
+    expect(await tema()).toBe('dark');
+    const salvo = await app.lerArmazenamento<{ settings: { theme: string } }>();
+    expect(salvo.settings.theme).toBe('dark');
+  });
+});
+
 test('exporta e importa backup', async ({ page }) => {
   const app = new BingoApp(page);
   await app.abrirInicio();

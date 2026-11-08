@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepAwake: true,
   hideInstallTip: false,
   compactView: false,
+  theme: 'auto',
 };
 
 export function initialState(): AppState {
@@ -101,6 +102,7 @@ export function sanitizeState(raw: unknown): AppState | null {
   const activeMatch = normalizeMatch(raw.activeMatch);
   const history = Array.isArray(raw.history) ? raw.history.map(normalizeMatch).filter(notNull) : [];
   const settings = isObject(raw.settings) ? { ...DEFAULT_SETTINGS, ...raw.settings } : base.settings;
+  if (!['auto', 'light', 'dark'].includes(String(settings.theme))) settings.theme = 'auto';
   return {
     version: 1,
     cards,

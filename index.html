@@ -14,6 +14,21 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Bingo APAE 2026</title>
+    <script>
+      // Aplica o tema salvo antes de a página aparecer, sem piscar em claro.
+      (function () {
+        try {
+          var salvo = JSON.parse(localStorage.getItem('bingo-apae-2026:v1') || '{}');
+          var tema = salvo && salvo.settings && salvo.settings.theme;
+          if (tema !== 'light' && tema !== 'dark') {
+            tema = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', tema);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

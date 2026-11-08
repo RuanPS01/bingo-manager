@@ -175,3 +175,19 @@ export const IconList = (p: IconProps) => (
     <circle cx="4.5" cy="18" r="1" fill="currentColor" />
   </svg>
 );
+
+/** Lua: tema escuro. */
+export const IconMoon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z" />
+  </svg>
+);
+
+/** Celular com a tela acesa: manter a tela ligada. */
+export const IconScreen = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none" />
+    <path d="M12 6.5v.5M12 15v.5M8 11h.5M15.5 11h.5" />
+  </svg>
+);

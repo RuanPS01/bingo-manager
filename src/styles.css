@@ -22,7 +22,67 @@
   --surface: #ffffff;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(16, 48, 107, 0.06), 0 6px 18px rgba(16, 48, 107, 0.07);
+
+  /* tokens de tema (claro) */
+  --accent-ink: var(--blue-800);
+  --accent-ink-2: var(--blue-700);
+  --heading-ink: var(--blue-900);
+  --green-ink: var(--green-700);
+  --cell-soft: #eef1f7;
+  --preview-off: #dfe5f0;
+  --preview-free: #c5d1e6;
+  --install-border: #b9e0c6;
+  --group-bg: rgba(255, 255, 255, 0.55);
+  --checkbox-border: #b7c3d9;
+  --bar-bg: rgba(255, 255, 255, 0.96);
+  --win-tint: #fffaeb;
+  --alert-line: #f2d3bd;
+  --drawn-other: #8592ab;
+  --error-bg: #fff1f1;
   color-scheme: light;
+}
+
+input::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+/*
+ * Tema escuro. O atributo data-theme é definido antes de a página aparecer
+ * (script no index.html) e mantido pelo app conforme a preferência salva.
+ */
+:root[data-theme='dark'] {
+  --blue-100: #22406f;
+  --blue-50: #182b4d;
+  --gold-100: #3b300c;
+  --gold-ink: #ffd75a;
+  --green-100: #10301f;
+  --orange-600: #ff9257;
+  --orange-100: #3a2414;
+  --red-600: #ff6b6b;
+  --ink: #e7edf8;
+  --muted: #a3b0c8;
+  --line: #2a3b5e;
+  --bg: #0a1322;
+  --surface: #121e35;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+
+  --accent-ink: #9cc0ff;
+  --accent-ink-2: #8fb6ff;
+  --heading-ink: #d6e4ff;
+  --green-ink: #6fdc98;
+  --cell-soft: #1b2a47;
+  --preview-off: #2a3b5e;
+  --preview-free: #3a4f78;
+  --install-border: #1f5a37;
+  --group-bg: rgba(255, 255, 255, 0.03);
+  --checkbox-border: #4a5d84;
+  --bar-bg: rgba(18, 30, 53, 0.96);
+  --win-tint: #2a2410;
+  --alert-line: #5a3a24;
+  --drawn-other: #4c5a78;
+  --error-bg: #3a1a1f;
+  color-scheme: dark;
 }
 
 * {
@@ -158,7 +218,7 @@ h3 {
 
 .btn-secondary {
   background: var(--blue-50);
-  color: var(--blue-800);
+  color: var(--accent-ink);
   border-color: var(--blue-100);
 }
 
@@ -337,7 +397,7 @@ h3 {
   padding: 10px 14px;
   border-radius: 12px;
   background: var(--green-100);
-  color: var(--green-700);
+  color: var(--green-ink);
   font-weight: 600;
 }
 
@@ -414,7 +474,7 @@ h3 {
   padding: 5px 10px 5px 5px;
   border-radius: 999px;
   border: 1.5px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   font-size: 0.85rem;
   font-weight: 650;
   text-align: left;
@@ -422,7 +482,7 @@ h3 {
 
 .chip-toggle.is-on {
   background: var(--green-700);
-  border-color: var(--green-700);
+  border-color: var(--green-ink);
   color: #fff;
 }
 
@@ -434,14 +494,14 @@ h3 {
   padding: 0 4px;
   border-radius: 999px;
   background: var(--blue-50);
-  color: var(--blue-800);
+  color: var(--accent-ink);
   font-size: 0.72rem;
   font-weight: 800;
   flex: none;
 }
 
 .chip-toggle.is-on .chip-round {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.25);
   color: #fff;
 }
 
@@ -485,7 +545,7 @@ h3 {
 .bingo-letter {
   text-align: center;
   font-weight: 850;
-  color: var(--blue-800);
+  color: var(--accent-ink);
   font-size: 0.95rem;
 }
 
@@ -497,7 +557,7 @@ h3 {
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: #fff;
+  background: var(--surface);
   border: 1.5px solid var(--line);
   font-weight: 750;
   font-size: 1.2rem;
@@ -510,12 +570,12 @@ h3 {
 
 .bingo-cell.is-free {
   background: var(--blue-50);
-  color: var(--blue-700);
+  color: var(--accent-ink-2);
 }
 
 .bingo-cell.is-marked {
   background: var(--blue-700);
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
   color: #fff;
 }
 
@@ -584,11 +644,11 @@ h3 {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: #dfe5f0;
+  background: var(--preview-off);
 }
 
 .mode-preview span.free {
-  background: #c5d1e6;
+  background: var(--preview-free);
 }
 
 .mode-preview span.on {
@@ -605,7 +665,7 @@ h3 {
   gap: 16px;
   padding: 20px;
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow);
   border-left: 6px solid var(--gold-400);
 }
@@ -732,7 +792,7 @@ h3 {
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--blue-50);
-  color: var(--blue-800);
+  color: var(--accent-ink);
   font-size: 0.8rem;
   font-weight: 750;
   white-space: nowrap;
@@ -749,7 +809,7 @@ h3 {
 
 .card-name-text {
   font-weight: 850;
-  color: var(--blue-900);
+  color: var(--heading-ink);
   font-size: 1.1rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -779,6 +839,7 @@ h3 {
   padding: 0 10px;
   border: 1.5px solid var(--blue-600);
   border-radius: 9px;
+  background: var(--surface);
   font-size: 1rem;
   font-weight: 700;
   box-shadow: 0 0 0 3px var(--blue-100);
@@ -802,8 +863,8 @@ h3 {
   padding: 14px 12px 14px 16px;
   border-radius: var(--radius);
   background: var(--green-100);
-  color: var(--green-700);
-  border: 1px solid #b9e0c6;
+  color: var(--green-ink);
+  border: 1px solid var(--install-border);
 }
 
 .install-card > svg {
@@ -839,7 +900,7 @@ h3 {
 }
 
 .card-group {
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--group-bg);
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 12px;
@@ -881,7 +942,7 @@ h3 {
   gap: 5px;
   font-size: 0.78rem;
   font-weight: 650;
-  color: var(--green-700);
+  color: var(--green-ink);
   background: var(--green-100);
   border-radius: 999px;
   padding: 3px 8px 3px 3px;
@@ -941,12 +1002,12 @@ h3 {
   padding: 10px 12px;
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   text-align: left;
 }
 
 .round-btn:hover {
-  border-color: var(--green-700);
+  border-color: var(--green-ink);
 }
 
 .round-num {
@@ -963,7 +1024,7 @@ h3 {
 
 .round-btn.is-on {
   background: var(--green-700);
-  border-color: var(--green-700);
+  border-color: var(--green-ink);
   color: #fff;
 }
 
@@ -984,7 +1045,7 @@ h3 {
 }
 
 .setup-card.is-selected {
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
 }
 
 .setup-card-head {
@@ -1033,20 +1094,20 @@ h3 {
   height: 22px;
   flex: none;
   border-radius: 6px;
-  border: 2px solid #b7c3d9;
-  background: #fff;
+  border: 2px solid var(--checkbox-border);
+  background: var(--surface);
 }
 
 .checkbox-on {
   background: var(--blue-700);
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
   color: #fff;
 }
 
 .checkbox-some {
   background: var(--blue-100);
-  border-color: var(--blue-700);
-  color: var(--blue-700);
+  border-color: var(--accent-ink-2);
+  color: var(--accent-ink-2);
 }
 
 .mode-group {
@@ -1090,7 +1151,7 @@ h3 {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--blue-800);
+  color: var(--accent-ink);
   margin: 0;
 }
 
@@ -1112,7 +1173,7 @@ h3 {
   padding: 10px 12px;
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
   text-align: left;
 }
 
@@ -1121,7 +1182,7 @@ h3 {
 }
 
 .mode-option.is-on {
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
   background: var(--blue-50);
 }
 
@@ -1159,7 +1220,7 @@ h3 {
   padding: 0 12px;
   border: 1.5px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   font-size: 1rem;
   width: 100%;
 }
@@ -1182,7 +1243,7 @@ h3 {
   z-index: 15;
   margin: 0 -16px -16px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bar-bg);
   backdrop-filter: blur(8px);
   border-top: 1px solid var(--line);
   box-shadow: 0 -6px 18px rgba(16, 48, 107, 0.08);
@@ -1271,7 +1332,7 @@ h3 {
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--gold-400);
-  color: var(--blue-900);
+  color: #10306b;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1286,7 +1347,7 @@ h3 {
 .last-ball-letter {
   font-size: 0.72rem;
   font-weight: 900;
-  color: var(--blue-700);
+  color: #1d4fa8;
 }
 
 .last-ball-num {
@@ -1300,8 +1361,11 @@ h3 {
   height: 58px;
   border-radius: 12px;
   border: 2px solid transparent;
+  /* campo sempre claro sobre o cabeçalho azul, nos dois temas */
   background: #fff;
-  color: var(--ink);
+  color: #142037;
+  caret-color: #142037;
+  color-scheme: light;
   font-size: 1.9rem;
   font-weight: 850;
   text-align: center;
@@ -1367,11 +1431,11 @@ h3 {
 
 .panel-win {
   border: 2px solid var(--gold-400);
-  background: linear-gradient(180deg, #fffaeb, #fff 60%);
+  background: linear-gradient(180deg, var(--win-tint), var(--surface) 60%);
 }
 
 .panel-win h2 {
-  color: var(--blue-900);
+  color: var(--heading-ink);
 }
 
 .panel-win h2 svg {
@@ -1394,7 +1458,7 @@ h3 {
 
 .achievement-mode {
   font-weight: 850;
-  color: var(--blue-900);
+  color: var(--heading-ink);
 }
 
 .achievement-detail {
@@ -1437,7 +1501,7 @@ h3 {
   align-items: baseline;
   gap: 2px 10px;
   padding: 8px 0;
-  border-top: 1px solid #f2d3bd;
+  border-top: 1px solid var(--alert-line);
   font-size: 0.9rem;
 }
 
@@ -1470,8 +1534,8 @@ h3 {
 }
 
 .segmented button.is-on {
-  background: #fff;
-  color: var(--blue-800);
+  background: var(--surface);
+  color: var(--accent-ink);
   box-shadow: 0 1px 3px rgba(16, 48, 107, 0.15);
 }
 
@@ -1489,7 +1553,7 @@ h3 {
   padding: 4px 8px;
   border-radius: 10px;
   border: 1.5px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   font-weight: 800;
   font-size: 0.95rem;
   line-height: 1.15;
@@ -1507,7 +1571,7 @@ button.ball-chip:disabled {
 
 .ball-chip-hit {
   background: var(--blue-700);
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
   color: #fff;
 }
 
@@ -1522,7 +1586,7 @@ button.ball-chip:disabled {
 .ball-chip-target {
   border: 2px dashed var(--orange-600);
   color: var(--orange-600);
-  background: #fff;
+  background: var(--surface);
   padding: 6px 10px;
 }
 
@@ -1543,7 +1607,7 @@ button.ball-chip:disabled {
   display: grid;
   place-items: center;
   font-weight: 900;
-  color: var(--blue-800);
+  color: var(--accent-ink);
   height: 26px;
 }
 
@@ -1552,7 +1616,7 @@ button.ball-chip:disabled {
   padding: 0;
   border-radius: 7px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--muted);
@@ -1566,15 +1630,15 @@ button.ball-chip:disabled {
 }
 
 .ball-board button.is-drawn {
-  background: #8592ab;
-  border-color: #8592ab;
+  background: var(--drawn-other);
+  border-color: var(--drawn-other);
   color: #fff;
   text-decoration: none;
 }
 
 .ball-board button.is-drawn.is-mine {
   background: var(--blue-700);
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
 }
 
 .ball-board button.is-target {
@@ -1611,7 +1675,7 @@ button.ball-chip:disabled {
 }
 
 .game-card {
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 14px;
   box-shadow: var(--shadow);
@@ -1620,7 +1684,7 @@ button.ball-chip:disabled {
 
 .game-card.is-won {
   border-color: var(--gold-400);
-  background: linear-gradient(180deg, #fffaeb, #fff 45%);
+  background: linear-gradient(180deg, var(--win-tint), var(--surface) 45%);
 }
 
 .game-card.is-close {
@@ -1649,7 +1713,7 @@ button.ball-chip:disabled {
 }
 
 .prize-tag .chip-round {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.25);
   color: #fff;
 }
 
@@ -1753,7 +1817,7 @@ button.ball-chip:disabled {
   max-height: 92vh;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--surface);
   border-radius: 18px 18px 0 0;
   overflow: hidden;
   box-shadow: 0 20px 50px rgba(11, 31, 71, 0.35);
@@ -1846,7 +1910,7 @@ button.ball-chip:disabled {
 
 .grid-editor-head strong {
   display: block;
-  color: var(--blue-800);
+  color: var(--accent-ink);
 }
 
 .grid-editor-head small {
@@ -1863,6 +1927,7 @@ button.ball-chip:disabled {
   border: 1.5px solid var(--line);
   border-radius: 10px;
   width: 100%;
+  background: var(--surface);
   min-width: 0;
 }
 
@@ -1874,7 +1939,7 @@ button.ball-chip:disabled {
 
 .grid-editor input.has-error {
   border-color: var(--red-600);
-  background: #fff1f1;
+  background: var(--error-bg);
 }
 
 .grid-editor-free {
@@ -1883,7 +1948,7 @@ button.ball-chip:disabled {
   height: 48px;
   border-radius: 10px;
   background: var(--blue-50);
-  color: var(--blue-700);
+  color: var(--accent-ink-2);
 }
 
 /* Responsivo */
@@ -1978,7 +2043,7 @@ button.ball-chip:disabled {
   border: 2px dashed var(--blue-100);
   border-radius: 12px;
   background: var(--blue-50);
-  color: var(--blue-800);
+  color: var(--accent-ink);
   font-weight: 750;
 }
 
@@ -2026,6 +2091,7 @@ button.ball-chip:disabled {
   border: 1.5px solid var(--line);
   border-radius: 10px;
   font-size: 1rem;
+  background: var(--surface);
 }
 
 .custom-games input:focus {
@@ -2036,7 +2102,7 @@ button.ball-chip:disabled {
 
 .custom-games input.has-error {
   border-color: var(--red-600);
-  background: #fff1f1;
+  background: var(--error-bg);
 }
 
 .add-custom {
@@ -2058,7 +2124,7 @@ button.ball-chip:disabled {
   height: 20px;
   margin: 1px 0 0;
   flex: none;
-  accent-color: var(--blue-700);
+  accent-color: var(--accent-ink-2);
 }
 
 .game-tabs {
@@ -2077,7 +2143,7 @@ button.ball-chip:disabled {
   padding: 6px 12px 6px 6px;
   border-radius: 999px;
   border: 1.5px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   font-size: 0.85rem;
   font-weight: 650;
   white-space: nowrap;
@@ -2085,12 +2151,12 @@ button.ball-chip:disabled {
 
 .game-tabs button.is-on {
   background: var(--blue-700);
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
   color: #fff;
 }
 
 .game-tabs button.is-on .chip-round {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.25);
   color: #fff;
 }
 
@@ -2118,6 +2184,7 @@ button.ball-chip:disabled {
   border: 1.5px solid var(--line);
   border-radius: 10px;
   font-size: 0.95rem;
+  background: var(--surface);
 }
 
 .quick-fill input:focus {
@@ -2136,7 +2203,7 @@ button.ball-chip:disabled {
 }
 
 .prize-list li.is-custom {
-  color: var(--blue-800);
+  color: var(--accent-ink);
   background: var(--blue-50);
   padding-left: 10px;
 }
@@ -2212,7 +2279,7 @@ button.ball-chip:disabled {
 }
 
 .panel-info h2 {
-  color: var(--green-700);
+  color: var(--green-ink);
 }
 
 .panel-info p {
@@ -2222,14 +2289,14 @@ button.ball-chip:disabled {
 /* Visão compacta dos jogos da partida: grade bem densa, inclusive no celular */
 
 .view-toggle {
-  background: #fff;
+  background: var(--surface);
   border-color: var(--line);
-  color: var(--blue-800);
+  color: var(--accent-ink);
 }
 
 .view-toggle.is-on {
   background: var(--blue-700);
-  border-color: var(--blue-700);
+  border-color: var(--accent-ink-2);
   color: #fff;
 }
 
@@ -2263,7 +2330,7 @@ button.ball-chip:disabled {
   min-width: 0;
   font-size: 0.62rem;
   font-weight: 800;
-  color: var(--blue-900);
+  color: var(--heading-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2282,7 +2349,7 @@ button.ball-chip:disabled {
   max-width: 50%;
   font-size: 0.52rem;
   font-weight: 700;
-  color: var(--green-700);
+  color: var(--green-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2305,7 +2372,7 @@ button.ball-chip:disabled {
 .bingo-grid-xs .bingo-cell {
   border: none;
   border-radius: 2px;
-  background: #eef1f7;
+  background: var(--cell-soft);
   font-size: min(0.62rem, 14cqi);
   font-weight: 700;
   line-height: 1;
@@ -2331,7 +2398,7 @@ button.ball-chip:disabled {
 }
 
 .bingo-grid-xs .bingo-cell.is-win.is-last {
-  outline-color: var(--blue-900);
+  outline-color: var(--heading-ink);
 }
 
 .bingo-grid-xs .bingo-cell.is-target {
@@ -2356,7 +2423,7 @@ button.ball-chip:disabled {
   border: none;
   border-radius: 4px;
   background: var(--blue-50);
-  color: var(--blue-800);
+  color: var(--accent-ink);
   font-size: 0.5rem;
   font-weight: 700;
   line-height: 1.5;
@@ -2400,4 +2467,18 @@ button.ball-chip:disabled {
   .mode-progress.is-compact li {
     font-size: 0.6rem;
   }
+}
+
+/* Preferências */
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 6px;
+}
+
+.pref-label {
+  font-weight: 700;
 }
