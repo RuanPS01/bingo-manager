@@ -1305,10 +1305,20 @@ h3 {
   padding: 0 8px;
 }
 
+/*
+ * Vazio, o campo usa o tamanho de fonte do texto de exemplo. Assim o texto
+ * fica centralizado na vertical (com a fonte grande do número, o texto menor
+ * ficava alinhado pela base da linha e aparecia mais para baixo).
+ */
+.draw-input:placeholder-shown {
+  font-size: 1rem;
+}
+
 .draw-input::placeholder {
   font-size: 1rem;
   font-weight: 600;
   color: #8a94aa;
+  opacity: 1;
 }
 
 .draw-input:focus {
