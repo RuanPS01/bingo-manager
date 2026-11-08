@@ -477,7 +477,8 @@ h3 {
 
 .bingo-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* minmax(0, 1fr): as colunas nunca passam da largura do cartão */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -490,6 +491,8 @@ h3 {
 
 .bingo-cell {
   position: relative;
+  min-width: 0;
+  overflow: hidden;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -2236,6 +2239,9 @@ button.ball-chip:disabled {
 }
 
 .game-card-compact {
+  /* o tamanho dos números acompanha a largura real do cartão (unidade cqi) */
+  container-type: inline-size;
+  overflow: hidden;
   padding: 3px;
   border-radius: 7px;
   border-width: 1.5px;
@@ -2292,21 +2298,47 @@ button.ball-chip:disabled {
   display: none;
 }
 
+/*
+ * Células sem borda (o fundo mostra o estado) e número proporcional à largura
+ * do cartão: dois dígitos sempre cabem na célula, mesmo em cartões de 60px.
+ */
 .bingo-grid-xs .bingo-cell {
-  font-size: 0.56rem;
-  font-weight: 700;
-  border-width: 1px;
+  border: none;
   border-radius: 2px;
-  letter-spacing: -0.02em;
+  background: #eef1f7;
+  font-size: min(0.62rem, 14cqi);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.bingo-grid-xs .bingo-cell.is-free {
+  background: var(--blue-50);
+}
+
+.bingo-grid-xs .bingo-cell.is-marked {
+  background: var(--blue-700);
+}
+
+.bingo-grid-xs .bingo-cell.is-win {
+  background: var(--gold-400);
 }
 
 .bingo-grid-xs .bingo-cell.is-last {
-  outline-width: 1.5px;
-  outline-offset: 0;
+  outline: 1.5px solid var(--gold-400);
+  outline-offset: -1.5px;
+  animation: none;
+}
+
+.bingo-grid-xs .bingo-cell.is-win.is-last {
+  outline-color: var(--blue-900);
 }
 
 .bingo-grid-xs .bingo-cell.is-target {
-  border-width: 1px;
+  border: none;
+  background: var(--orange-100);
+  outline: 1px dashed var(--orange-600);
+  outline-offset: -1px;
 }
 
 .mode-progress.is-compact {
@@ -2362,7 +2394,7 @@ button.ball-chip:disabled {
   }
 
   .bingo-grid-xs .bingo-cell {
-    font-size: 0.72rem;
+    font-size: min(0.78rem, 14cqi);
   }
 
   .mode-progress.is-compact li {

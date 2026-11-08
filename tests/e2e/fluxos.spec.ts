@@ -323,6 +323,7 @@ test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', a
   expect(await cabem()).toBe(true);
   const alturaCompacta = (await page.locator('.game-card').first().boundingBox())!.height;
   expect(alturaCompacta).toBeLessThan(alturaNormal / 2);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
 
   // marcação e padrões continuam funcionando na visão compacta
   await marcar(app, 54);
@@ -345,6 +346,7 @@ test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', a
   await page.locator('.action-bar').getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(page.locator('.games-grid-compact .game-card')).toHaveCount(15);
   expect(await cabem()).toBe(true);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
   const colunas = await page.evaluate(
     () =>
       new Set([...document.querySelectorAll('.game-card')].map((el) => Math.round(el.getBoundingClientRect().left)))
@@ -355,6 +357,7 @@ test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', a
   // em tela bem pequena: sem rolagem lateral, e a rolagem vertical continua para ver o resto
   await page.setViewportSize({ width: 360, height: 640 });
   expect(await cabem()).toBe(false);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
   const medidas = await page.evaluate(() => ({
     largura: document.documentElement.scrollWidth,
     tela: window.innerWidth,
@@ -579,6 +582,7 @@ test('layout mobile: nada passa da largura da tela em 360px', async ({ page }) =
       visivel: window.visualViewport?.width ?? window.innerWidth,
     }));
     expect(larguras, tela).toEqual({ pagina: 360, conteudo: 360, visivel: 360 });
+    expect(await app.numerosForaDosCartoes(), tela).toEqual([]);
   };
   await app.abrirInicio();
   await semRolagemLateral('início');
@@ -592,6 +596,9 @@ test('layout mobile: nada passa da largura da tela em 360px', async ({ page }) =
   await semRolagemLateral('partida');
   await app.verPainel('Painel');
   await semRolagemLateral('painel 1 a 75');
+  await app.visaoCompacta(true);
+  await semRolagemLateral('visão compacta');
+  await app.visaoCompacta(false);
   await finalizar(app);
   await page.locator('.history-item').first().click();
   await semRolagemLateral('histórico');

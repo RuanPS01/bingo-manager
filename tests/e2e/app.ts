@@ -90,6 +90,29 @@ export class BingoApp {
   }
 
   /** Responde à confirmação, que sempre abre por cima de qualquer outra janela. */
+  /**
+   * Lista números que saem do cartão ou ficam cortados na célula, em todas as
+   * grades visíveis (partida, tela inicial e nova partida). Vazio quando está tudo certo.
+   */
+  async numerosForaDosCartoes(): Promise<string[]> {
+    return this.page.evaluate(() => {
+      const problemas: string[] = [];
+      for (const card of document.querySelectorAll('.game-card, .card-item, .setup-card')) {
+        const c = card.getBoundingClientRect();
+        for (const cell of card.querySelectorAll<HTMLElement>('.bingo-cell')) {
+          const r = cell.getBoundingClientRect();
+          if (r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5) {
+            problemas.push(`fora do cartão: ${cell.textContent}`);
+          }
+          if (cell.scrollWidth > cell.clientWidth || cell.scrollHeight > cell.clientHeight) {
+            problemas.push(`número cortado: ${cell.textContent}`);
+          }
+        }
+      }
+      return problemas;
+    });
+  }
+
   /** Liga ou desliga a visão compacta dos jogos da partida. */
   async visaoCompacta(ligada: boolean) {
     const botao = this.page.getByRole('button', { name: 'Visão compacta' });
