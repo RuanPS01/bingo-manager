@@ -292,6 +292,87 @@ test('a partida continua depois de fechar um padrão, sem precisar fechar o avis
   await expect(page.locator('.history-item')).toHaveCount(1);
 });
 
+test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', async ({ page }) => {
+  const app = new BingoApp(page);
+  await app.abrirInicio();
+  await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
+  await page.locator('.round-btn').first().click();
+  await app.escolherModo('quina');
+  await page.locator('.action-bar').getByRole('button', { name: 'Iniciar jogo' }).click();
+  for (const n of [6, 19, 41]) await marcar(app, n);
+
+  const alturaNormal = (await page.locator('.game-card').first().boundingBox())!.height;
+  await expect(page.locator('.card-group')).toHaveCount(3);
+  await app.visaoCompacta(true);
+  await expect(page.locator('.card-group')).toHaveCount(0);
+  await expect(page.locator('.games-grid-compact .game-card')).toHaveCount(3);
+  await expect(page.locator('.modes-line')).toContainText('quanto falta para fechar o padrão');
+
+  // com a lista logo abaixo do cabeçalho fixo, as 3 cartelas cabem inteiras na tela
+  const cabem = async () =>
+    page.evaluate(() => {
+      const barra = document.querySelector('.match-bar')!.getBoundingClientRect().height;
+      const lista = document.querySelector('.section-toolbar')!;
+      window.scrollTo(0, lista.getBoundingClientRect().top + window.scrollY - barra - 4);
+      const topo = document.querySelector('.match-bar')!.getBoundingClientRect().bottom;
+      return [...document.querySelectorAll('.game-card')].every((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top >= topo - 1 && r.bottom <= window.innerHeight + 1;
+      });
+    });
+  expect(await cabem()).toBe(true);
+  const alturaCompacta = (await page.locator('.game-card').first().boundingBox())!.height;
+  expect(alturaCompacta).toBeLessThan(alturaNormal / 2);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
+
+  // marcação e padrões continuam funcionando na visão compacta
+  await marcar(app, 54);
+  const bruna = page.locator('.game-card[data-game="cartela-01062::bicicleta"]');
+  await expect(bruna).toHaveAttribute('data-marked', '4');
+  await expect(bruna.locator('[data-mode="quina"]')).toHaveText('Quina1');
+  await expect(bruna.locator('[data-mode="quina"]')).toHaveClass(/is-close/);
+  await marcar(app, 69);
+  await expect(app.avisoBingo).toContainText('Quina: Bruna, Bicicleta Aro 26');
+  await expect(bruna.locator('[data-mode="quina"]')).toHaveClass(/is-done/);
+  await expect(bruna.locator('[data-mode="quina"]')).toHaveAttribute('data-done', '5');
+
+  // a escolha fica salva
+  await page.reload();
+  await expect(page.locator('.games-grid-compact .game-card')).toHaveCount(3);
+
+  // com os 15 jogos (5 prêmios das 3 cartelas), todos cabem de uma vez num celular comum
+  await page.getByRole('button', { name: 'Editar jogos e modos' }).click();
+  await page.getByRole('button', { name: 'Todos', exact: true }).click();
+  await page.locator('.action-bar').getByRole('button', { name: 'Salvar alterações' }).click();
+  await expect(page.locator('.games-grid-compact .game-card')).toHaveCount(15);
+  expect(await cabem()).toBe(true);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
+  const colunas = await page.evaluate(
+    () =>
+      new Set([...document.querySelectorAll('.game-card')].map((el) => Math.round(el.getBoundingClientRect().left)))
+        .size,
+  );
+  expect(colunas).toBe(5);
+
+  // em tela bem pequena: sem rolagem lateral, e a rolagem vertical continua para ver o resto
+  await page.setViewportSize({ width: 360, height: 640 });
+  expect(await cabem()).toBe(false);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
+  const medidas = await page.evaluate(() => ({
+    largura: document.documentElement.scrollWidth,
+    tela: window.innerWidth,
+    altura: document.documentElement.scrollHeight,
+    alturaTela: window.innerHeight,
+  }));
+  expect(medidas.largura).toBe(medidas.tela);
+  expect(medidas.altura).toBeGreaterThan(medidas.alturaTela);
+  await page.locator('.game-card').last().scrollIntoViewIfNeeded();
+  await expect(page.locator('.game-card').last()).toBeInViewport();
+
+  await app.visaoCompacta(false);
+  await expect(page.locator('.card-group')).toHaveCount(3);
+});
+
 test('exporta e importa backup', async ({ page }) => {
   const app = new BingoApp(page);
   await app.abrirInicio();
@@ -501,6 +582,7 @@ test('layout mobile: nada passa da largura da tela em 360px', async ({ page }) =
       visivel: window.visualViewport?.width ?? window.innerWidth,
     }));
     expect(larguras, tela).toEqual({ pagina: 360, conteudo: 360, visivel: 360 });
+    expect(await app.numerosForaDosCartoes(), tela).toEqual([]);
   };
   await app.abrirInicio();
   await semRolagemLateral('início');
@@ -514,6 +596,9 @@ test('layout mobile: nada passa da largura da tela em 360px', async ({ page }) =
   await semRolagemLateral('partida');
   await app.verPainel('Painel');
   await semRolagemLateral('painel 1 a 75');
+  await app.visaoCompacta(true);
+  await semRolagemLateral('visão compacta');
+  await app.visaoCompacta(false);
   await finalizar(app);
   await page.locator('.history-item').first().click();
   await semRolagemLateral('histórico');

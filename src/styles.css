@@ -477,7 +477,8 @@ h3 {
 
 .bingo-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* minmax(0, 1fr): as colunas nunca passam da largura do cartão */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
 }
 
@@ -490,6 +491,8 @@ h3 {
 
 .bingo-cell {
   position: relative;
+  min-width: 0;
+  overflow: hidden;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -1305,10 +1308,20 @@ h3 {
   padding: 0 8px;
 }
 
+/*
+ * Vazio, o campo usa o tamanho de fonte do texto de exemplo. Assim o texto
+ * fica centralizado na vertical (com a fonte grande do número, o texto menor
+ * ficava alinhado pela base da linha e aparecia mais para baixo).
+ */
+.draw-input:placeholder-shown {
+  font-size: 1rem;
+}
+
 .draw-input::placeholder {
   font-size: 1rem;
   font-weight: 600;
   color: #8a94aa;
+  opacity: 1;
 }
 
 .draw-input:focus {
@@ -2204,4 +2217,187 @@ button.ball-chip:disabled {
 
 .panel-info p {
   margin: 0 0 12px;
+}
+
+/* Visão compacta dos jogos da partida: grade bem densa, inclusive no celular */
+
+.view-toggle {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--blue-800);
+}
+
+.view-toggle.is-on {
+  background: var(--blue-700);
+  border-color: var(--blue-700);
+  color: #fff;
+}
+
+.games-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(66px, 100%), 1fr));
+  gap: 4px;
+}
+
+.game-card-compact {
+  /* o tamanho dos números acompanha a largura real do cartão (unidade cqi) */
+  container-type: inline-size;
+  overflow: hidden;
+  padding: 3px;
+  border-radius: 7px;
+  border-width: 1.5px;
+  box-shadow: 0 1px 2px rgba(16, 48, 107, 0.08);
+  min-width: 0;
+}
+
+.gc-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin-bottom: 2px;
+  line-height: 1.1;
+}
+
+.gc-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--blue-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gc-head .chip-round {
+  min-width: 12px;
+  height: 12px;
+  padding: 0 2px;
+  font-size: 0.52rem;
+  background: var(--green-700);
+  color: #fff;
+}
+
+.gc-game-name {
+  max-width: 50%;
+  font-size: 0.52rem;
+  font-weight: 700;
+  color: var(--green-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bingo-grid-xs,
+.bingo-grid-xs .bingo-row {
+  gap: 1px;
+}
+
+/* sem a linha B I N G O: a posição das colunas já é conhecida */
+.bingo-grid-xs .bingo-head {
+  display: none;
+}
+
+/*
+ * Células sem borda (o fundo mostra o estado) e número proporcional à largura
+ * do cartão: dois dígitos sempre cabem na célula, mesmo em cartões de 60px.
+ */
+.bingo-grid-xs .bingo-cell {
+  border: none;
+  border-radius: 2px;
+  background: #eef1f7;
+  font-size: min(0.62rem, 14cqi);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.bingo-grid-xs .bingo-cell.is-free {
+  background: var(--blue-50);
+}
+
+.bingo-grid-xs .bingo-cell.is-marked {
+  background: var(--blue-700);
+}
+
+.bingo-grid-xs .bingo-cell.is-win {
+  background: var(--gold-400);
+}
+
+.bingo-grid-xs .bingo-cell.is-last {
+  outline: 1.5px solid var(--gold-400);
+  outline-offset: -1.5px;
+  animation: none;
+}
+
+.bingo-grid-xs .bingo-cell.is-win.is-last {
+  outline-color: var(--blue-900);
+}
+
+.bingo-grid-xs .bingo-cell.is-target {
+  border: none;
+  background: var(--orange-100);
+  outline: 1px dashed var(--orange-600);
+  outline-offset: -1px;
+}
+
+.mode-progress.is-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.mode-progress.is-compact li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px;
+  border: none;
+  border-radius: 4px;
+  background: var(--blue-50);
+  color: var(--blue-800);
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.mode-progress.is-compact li b {
+  font-weight: 900;
+}
+
+.mode-progress.is-compact li.is-close {
+  background: var(--orange-100);
+  color: var(--orange-600);
+}
+
+.mode-progress.is-compact li.is-done {
+  background: var(--gold-400);
+  color: var(--blue-950);
+}
+
+@media (min-width: 760px) {
+  .games-grid-compact {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 6px;
+  }
+
+  .game-card-compact {
+    padding: 5px;
+  }
+
+  .gc-name {
+    font-size: 0.74rem;
+  }
+
+  .bingo-grid-xs .bingo-cell {
+    font-size: min(0.78rem, 14cqi);
+  }
+
+  .mode-progress.is-compact li {
+    font-size: 0.6rem;
+  }
 }

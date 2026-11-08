@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sortByProgress: false,
   keepAwake: true,
   hideInstallTip: false,
+  compactView: false,
 };
 
 export function initialState(): AppState {
