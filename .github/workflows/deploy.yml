@@ -1,6 +1,8 @@
 name: Publicar no GitHub Pages
 
-# Publica o site a cada merge (push) na branch main, depois que todos os testes passam.
+# Publica o site a cada merge (push) na branch main, depois dos testes rápidos
+# (formatação, tipos, unitários e fluxos de ponta a ponta). A simulação de 60
+# partidas já rodou no pull request, então não é repetida aqui.
 on:
   push:
     branches: [main]
@@ -18,6 +20,8 @@ concurrency:
 jobs:
   testes:
     uses: ./.github/workflows/testes.yml
+    with:
+      simulacao: 'nao'
 
   build:
     name: Gerar site

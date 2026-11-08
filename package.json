@@ -11,6 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/e2e",
     "test:e2e": "playwright test",
+    "test:e2e:fluxos": "playwright test tests/e2e/fluxos.spec.ts",
+    "test:e2e:simulacao": "playwright test tests/e2e/simulacao.spec.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

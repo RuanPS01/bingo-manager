@@ -62,8 +62,8 @@ Arquivos do PWA: `public/manifest.webmanifest`, `public/sw.js` (service worker) 
 
 A pipeline fica em `.github/workflows/`:
 
-- `testes.yml`: roda em todo pull request. Confere formatação, tipos, testes unitários e os testes de ponta a ponta (inclusive a simulação de 60 partidas).
-- `deploy.yml`: roda a cada merge (push) na `main`. Executa os mesmos testes e, se tudo passar, gera o build e publica no GitHub Pages.
+- `testes.yml`: roda em todo pull request, com dois jobs em paralelo. **Tipos, unitários e fluxos** confere formatação, tipos, testes unitários e os fluxos de ponta a ponta (cerca de 1 minuto). **Simulação de 60 partidas** roda a simulação completa (cerca de 3 minutos).
+- `deploy.yml`: roda a cada merge (push) na `main`. Executa só os testes rápidos (a simulação já passou no pull request) e, se tudo passar, gera o build e publica no GitHub Pages.
 
 Para ativar uma única vez: no GitHub, abra **Settings > Pages** e em **Build and deployment > Source** escolha **GitHub Actions**. O site fica em `https://<usuário>.github.io/bingo-manager/`.
 
@@ -75,7 +75,9 @@ Requisitos: Node.js 20 ou superior.
 npm install
 npm run dev          # servidor de desenvolvimento
 npm test             # testes unitários da lógica do bingo (Vitest)
-npm run test:e2e     # testes de ponta a ponta (Playwright)
+npm run test:e2e     # todos os testes de ponta a ponta (Playwright)
+npm run test:e2e:fluxos      # só os fluxos (rápido)
+npm run test:e2e:simulacao   # só a simulação de 60 partidas
 npm run typecheck    # tipos do app e dos testes
 npm run format       # formata o código (Prettier)
 npm run build        # gera dist/

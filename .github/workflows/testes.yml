@@ -1,20 +1,26 @@
 name: Testes
 
-# Roda em todo pull request e também é usado pelo workflow de publicação,
-# garantindo que nada vai para o ar sem passar pelos testes.
+# Roda em todo pull request e também é usado pelo workflow de publicação.
+# A simulação de 60 partidas roda em um job separado, em paralelo, e só nos
+# pull requests: na publicação (merge na main) o código já foi validado por ela.
 on:
   pull_request:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      simulacao:
+        description: "Rodar a simulação de 60 partidas ('sim' ou 'nao')"
+        type: string
+        default: 'sim'
 
 permissions:
   contents: read
 
 jobs:
-  testes:
-    name: Tipos, unitários e ponta a ponta
+  rapidos:
+    name: Tipos, unitários e fluxos
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -38,15 +44,47 @@ jobs:
       - name: Instalar navegador dos testes
         run: npx playwright install --with-deps chromium
 
-      - name: Testes de ponta a ponta (fluxos e 60 partidas simuladas)
-        run: npm run test:e2e
+      - name: Testes de ponta a ponta dos fluxos
+        run: npm run test:e2e:fluxos
         env:
           CI: 'true'
 
       - name: Guardar relatório dos testes
-        if: ${{ !cancelled() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: relatorio-playwright
+          name: relatorio-fluxos
+          path: playwright-report
+          retention-days: 14
+
+  simulacao:
+    name: Simulação de 60 partidas
+    if: ${{ inputs.simulacao != 'nao' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar navegador dos testes
+        run: npx playwright install --with-deps chromium
+
+      - name: 20 partidas por cartela, conferidas contra o oráculo
+        run: npm run test:e2e:simulacao
+        env:
+          CI: 'true'
+
+      - name: Guardar relatório dos testes
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-simulacao
           path: playwright-report
           retention-days: 14
