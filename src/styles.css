@@ -667,7 +667,7 @@ h3 {
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow);
-  border-left: 6px solid var(--gold-400);
+  border: 2px solid var(--gold-400);
 }
 
 .start-card h2 {
