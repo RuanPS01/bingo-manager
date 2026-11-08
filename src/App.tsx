@@ -5,6 +5,7 @@ import { MatchSetup, type SetupResult } from './components/MatchSetup';
 import { DEFAULT_MODE_IDS } from './data/modes';
 import { toMatchGame } from './lib/cards';
 import { STORAGE_KEY, loadState, sanitizeState, saveState } from './lib/storage';
+import { useTheme } from './lib/useTheme';
 import { reducer } from './state';
 import type { Card, Match } from './types';
 import { HomeView } from './views/HomeView';
@@ -54,6 +55,7 @@ function cardsForEditing(cards: Card[], match: Match): Card[] {
 export default function App() {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
   const [route, navigate] = useHashRoute();
+  const theme = useTheme(state.settings.theme);
   const [storageFailed, setStorageFailed] = useState(false);
   const skipSave = useRef(false);
 
@@ -154,6 +156,7 @@ export default function App() {
         settings={state.settings}
         canReopen={false}
         cards={state.cards}
+        theme={theme}
         dispatch={dispatch}
         navigate={navigate}
       />
@@ -167,6 +170,7 @@ export default function App() {
         settings={state.settings}
         canReopen={!active}
         cards={state.cards}
+        theme={theme}
         dispatch={dispatch}
         navigate={navigate}
       />

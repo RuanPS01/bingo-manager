@@ -11,8 +11,10 @@ import {
   IconFlag,
   IconGrid,
   IconInstall,
+  IconMoon,
   IconPlus,
   IconSave,
+  IconSun,
   IconTrophy,
 } from '../components/Icons';
 import { EVENT, roundOf } from '../data/event';
@@ -225,8 +227,32 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
         <section className="panel panel-quiet">
           <header className="panel-head">
-            <h2>Dados</h2>
+            <h2>Preferências e dados</h2>
           </header>
+          <div className="pref-row">
+            <span className="pref-label">Tema</span>
+            <div className="segmented" role="group" aria-label="Tema">
+              {(
+                [
+                  ['auto', 'Automático'],
+                  ['light', 'Claro'],
+                  ['dark', 'Escuro'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={state.settings.theme === value ? 'is-on' : ''}
+                  aria-pressed={state.settings.theme === value}
+                  onClick={() => dispatch({ type: 'settings', patch: { theme: value } })}
+                >
+                  {value === 'dark' ? <IconMoon size={16} /> : value === 'light' ? <IconSun size={16} /> : null}
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="hint">Automático segue o tema do celular ou do computador.</p>
           <p className="hint">
             Tudo fica salvo automaticamente neste navegador. Use o backup para levar os dados para outro aparelho.
           </p>

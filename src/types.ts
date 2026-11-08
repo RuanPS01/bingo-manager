@@ -66,6 +66,8 @@ export interface Settings {
   hideInstallTip: boolean;
   /** Jogos da partida em grade compacta, para ver todos de uma vez. */
   compactView: boolean;
+  /** Tema: automático (segue o sistema), claro ou escuro. */
+  theme: 'auto' | 'light' | 'dark';
 }
 
 export interface AppState {

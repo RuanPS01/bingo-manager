@@ -11,6 +11,8 @@ import {
   IconHome,
   IconList,
   IconPlus,
+  IconMoon,
+  IconScreen,
   IconSound,
   IconSun,
   IconTrash,
@@ -33,6 +35,7 @@ import {
   type GameResult,
 } from '../lib/bingo';
 import { playMark, playWin, unlockAudio, vibrate } from '../lib/feedback';
+import type { Theme } from '../lib/useTheme';
 import { useWakeLock } from '../lib/useWakeLock';
 import type { Action } from '../state';
 import type { Card, Match, Settings } from '../types';
@@ -41,6 +44,7 @@ import { formatDateTime } from './HomeView';
 interface MatchViewProps {
   match: Match;
   cards: Card[];
+  theme: Theme;
   readOnly: boolean;
   settings: Settings;
   canReopen: boolean;
@@ -55,7 +59,7 @@ const modeName = (id: string) => getMode(id)?.name ?? id;
 /** Quantos números o aviso de BINGO fica na tela antes de sumir sozinho. */
 const BANNER_DRAWS = 3;
 
-export function MatchView({ match, cards, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
+export function MatchView({ match, cards, theme, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
   const confirm = useConfirm();
   const evaluation = useMemo(() => evaluateMatch(match), [match]);
   const [input, setInput] = useState('');
@@ -235,6 +239,16 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
               <small>{readOnly ? 'Partida finalizada' : 'Partida em andamento'}</small>
               <strong>{match.name}</strong>
             </div>
+            <button
+              type="button"
+              className="icon-btn icon-btn-dark"
+              onMouseDown={keepFocus}
+              onClick={() => dispatch({ type: 'settings', patch: { theme: theme === 'dark' ? 'light' : 'dark' } })}
+              aria-label={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
+              title={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'}
+            >
+              {theme === 'dark' ? <IconSun /> : <IconMoon />}
+            </button>
             {!readOnly && (
               <>
                 <button
@@ -245,7 +259,7 @@ export function MatchView({ match, cards, readOnly, settings, canReopen, dispatc
                   title="Manter a tela ligada"
                   aria-pressed={settings.keepAwake}
                 >
-                  <IconSun />
+                  <IconScreen />
                 </button>
                 <button
                   type="button"
