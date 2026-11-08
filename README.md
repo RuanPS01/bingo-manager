@@ -36,7 +36,8 @@ Ainda não é uma plataforma genérica: as cartelas, os prêmios e as regras for
 
 - No topo fica sempre o campo para digitar o número sorteado (aceita `7`, `07`, `B7` ou `b-07`). O último número aparece em destaque.
 - Os jogos aparecem separados por cartela, com o nome da cartela (que também pode ser trocado ali). Todos são marcados automaticamente ao mesmo tempo.
-- Quando um modo é completado aparece o aviso **BINGO!** (com som e vibração, que podem ser desligados), e a conquista fica registrada com o número e a posição do sorteio em que aconteceu.
+- Quando um modo é completado aparece o aviso **BINGO!** no topo (com som e vibração, que podem ser desligados), e a conquista fica registrada com o número e a posição do sorteio em que aconteceu. O aviso não bloqueia a tela: o campo continua ativo para o próximo número e o aviso some sozinho depois de 3 números (ou no X).
+- Quando todos os padrões que valem são fechados, a partida continua aberta: dá para seguir marcando, incluir outros modos (por exemplo, cartela cheia depois da quina) ou finalizar.
 - O painel **Falta 1 número** mostra quais números completam algum modo no próximo sorteio.
 - Lista dos números sorteados em ordem ou em painel de 1 a 75 (o painel também permite marcar tocando no número).
 - Desfazer o último número ou remover qualquer número sorteado; as marcações e conquistas são recalculadas.
@@ -62,8 +63,8 @@ Arquivos do PWA: `public/manifest.webmanifest`, `public/sw.js` (service worker) 
 
 A pipeline fica em `.github/workflows/`:
 
-- `testes.yml`: roda em todo pull request. Confere formatação, tipos, testes unitários e os testes de ponta a ponta (inclusive a simulação de 60 partidas).
-- `deploy.yml`: roda a cada merge (push) na `main`. Executa os mesmos testes e, se tudo passar, gera o build e publica no GitHub Pages.
+- `testes.yml`: roda em todo pull request, com dois jobs em paralelo. **Tipos, unitários e fluxos** confere formatação, tipos, testes unitários e os fluxos de ponta a ponta (cerca de 1 minuto). **Simulação de 60 partidas** roda a simulação completa (cerca de 3 minutos).
+- `deploy.yml`: roda a cada merge (push) na `main`. Executa só os testes rápidos (a simulação já passou no pull request) e, se tudo passar, gera o build e publica no GitHub Pages.
 
 Para ativar uma única vez: no GitHub, abra **Settings > Pages** e em **Build and deployment > Source** escolha **GitHub Actions**. O site fica em `https://<usuário>.github.io/bingo-manager/`.
 
@@ -75,7 +76,9 @@ Requisitos: Node.js 20 ou superior.
 npm install
 npm run dev          # servidor de desenvolvimento
 npm test             # testes unitários da lógica do bingo (Vitest)
-npm run test:e2e     # testes de ponta a ponta (Playwright)
+npm run test:e2e     # todos os testes de ponta a ponta (Playwright)
+npm run test:e2e:fluxos      # só os fluxos (rápido)
+npm run test:e2e:simulacao   # só a simulação de 60 partidas
 npm run typecheck    # tipos do app e dos testes
 npm run format       # formata o código (Prettier)
 npm run build        # gera dist/
@@ -88,7 +91,7 @@ O build gera um único `dist/index.html` com todo o JavaScript e CSS embutidos, 
 ### Testes de ponta a ponta
 
 - `tests/e2e/simulacao.spec.ts`: simula **20 partidas para cada uma das 3 cartelas** usando o campo de número como um usuário. Depois de cada número a mensagem do app e o aviso de BINGO são conferidos, e a cada 10 números (e depois de cada ação especial) a tela inteira é comparada com um oráculo independente (`tests/e2e/oracle.ts`, que reescreve as regras dos 23 modos de outra forma). Passa por: seleção por rodada, por cartela e jogo a jogo; os 23 modos; Enter, botão Marcar e painel 1 a 75; formatos `7`, `07`, `B7`, `b-07`; números inválidos e repetidos; desfazer; remover número (cancelando e confirmando); recarregar a página; sair e continuar; editar modos no meio da partida; renomear cartela; ordenar por proximidade; som e tela ligada; finalizar pela partida e pelo início; histórico; reabrir partida.
-- `tests/e2e/fluxos.spec.ts`: cadastro, validação, renomeação, edição e exclusão de cartelas; cadastro manual de jogo avulso e de cartela com números diferentes por jogo, com Salvar e jogar e inclusão na partida em andamento; backup; migração de dados antigos; botão voltar e endereços inválidos; sincronização entre abas; PWA (manifesto, ícones, service worker, uso offline e convite de instalação, inclusive a dica do iPhone); layout em 360px sem rolagem lateral; interface sem emojis, setas ou travessões.
+- `tests/e2e/fluxos.spec.ts`: cadastro, validação, renomeação, edição e exclusão de cartelas; cadastro manual de jogo avulso e de cartela com números diferentes por jogo, com Salvar e jogar e inclusão na partida em andamento; backup; migração de dados antigos; botão voltar e endereços inválidos; sincronização entre abas; PWA (manifesto, ícones, service worker, uso offline e convite de instalação, inclusive a dica do iPhone); continuar a partida depois de fechar padrões; layout em 360px sem rolagem lateral; interface sem emojis, setas ou travessões.
 
 ### Estrutura
 

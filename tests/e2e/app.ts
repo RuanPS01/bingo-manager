@@ -24,8 +24,9 @@ export class BingoApp {
     return this.page.locator('.feedback');
   }
 
-  get modalVitoria(): Locator {
-    return this.page.locator('.modal-win');
+  /** Aviso de BINGO no topo da partida (não bloqueia a tela). */
+  get avisoBingo(): Locator {
+    return this.page.locator('.win-banner');
   }
 
   get modal(): Locator {
