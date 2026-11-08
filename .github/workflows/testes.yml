@@ -1,0 +1,52 @@
+name: Testes
+
+# Roda em todo pull request e também é usado pelo workflow de publicação,
+# garantindo que nada vai para o ar sem passar pelos testes.
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    name: Tipos, unitários e ponta a ponta
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Tipos (TypeScript)
+        run: npm run typecheck
+
+      - name: Testes unitários
+        run: npm test
+
+      - name: Instalar navegador dos testes
+        run: npx playwright install --with-deps chromium
+
+      - name: Testes de ponta a ponta (fluxos e 60 partidas simuladas)
+        run: npm run test:e2e
+        env:
+          CI: 'true'
+
+      - name: Guardar relatório dos testes
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-playwright
+          path: playwright-report
+          retention-days: 14
