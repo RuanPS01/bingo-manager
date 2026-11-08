@@ -453,6 +453,80 @@ test.describe('tema escuro', () => {
   });
 });
 
+test('visão compacta: escolher a quantidade de colunas', async ({ page }) => {
+  const app = new BingoApp(page);
+  await app.abrirInicio();
+  await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
+  await page.getByRole('button', { name: 'Todos', exact: true }).click();
+  await page.locator('.action-bar').getByRole('button', { name: 'Iniciar jogo' }).click();
+  for (const n of [6, 25, 41]) await marcar(app, n);
+
+  const grupo = page.getByRole('group', { name: 'Colunas da visão compacta' });
+  await expect(grupo).toHaveCount(0);
+  await app.visaoCompacta(true);
+  const colunas = () =>
+    page.evaluate(
+      () =>
+        new Set([...document.querySelectorAll('.game-card')].map((el) => Math.round(el.getBoundingClientRect().left)))
+          .size,
+    );
+  const fonte = () =>
+    page
+      .locator('.game-card .bingo-cell:not(.is-free)')
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const opcao = (n: number) => grupo.getByRole('button', { name: `${n} colunas`, exact: true });
+
+  // celular comum: Auto e de 2 a 5 (com mais colunas os números ficariam ilegíveis)
+  await expect(grupo.getByRole('button')).toHaveText(['Auto', '2', '3', '4', '5']);
+  await expect(grupo.getByRole('button', { name: 'Colunas automáticas' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await colunas()).toBe(5);
+  const fonteAuto = await fonte();
+  for (const n of [2, 3, 4, 5]) {
+    await opcao(n).click();
+    await expect.poll(colunas).toBe(n);
+    await expect(opcao(n)).toHaveAttribute('aria-pressed', 'true');
+    expect(await app.numerosForaDosCartoes()).toEqual([]);
+  }
+
+  // com menos colunas os cartões e os números crescem
+  await opcao(2).click();
+  await expect.poll(colunas).toBe(2);
+  expect(await fonte()).toBeGreaterThan(fonteAuto * 2);
+
+  // a escolha fica salva e a marcação continua funcionando
+  await opcao(3).click();
+  await page.reload();
+  await expect.poll(colunas).toBe(3);
+  await expect(opcao(3)).toHaveAttribute('aria-pressed', 'true');
+  await marcar(app, 54);
+  await expect(page.locator('.game-card[data-game="cartela-01062::bicicleta"]')).toHaveAttribute('data-marked', '3');
+
+  // em tela menor o 5 some, e o valor salvo vira o máximo legível (4)
+  await opcao(5).click();
+  await page.setViewportSize({ width: 360, height: 740 });
+  await expect(grupo.getByRole('button')).toHaveText(['Auto', '2', '3', '4']);
+  await expect.poll(colunas).toBe(4);
+  await expect(opcao(4)).toHaveAttribute('aria-pressed', 'true');
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBe(0);
+
+  // em tela grande: até 8 colunas, e o valor salvo (5) volta a valer
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(grupo.getByRole('button')).toHaveText(['Auto', '2', '3', '4', '5', '6', '7', '8']);
+  await expect.poll(colunas).toBe(5);
+  await opcao(8).click();
+  await expect.poll(colunas).toBe(8);
+  expect(await app.numerosForaDosCartoes()).toEqual([]);
+
+  // de volta ao automático
+  await grupo.getByRole('button', { name: 'Colunas automáticas' }).click();
+  await page.setViewportSize({ width: 412, height: 839 });
+  await expect.poll(colunas).toBe(5);
+  const salvo = await app.lerArmazenamento<{ settings: { compactColumns: number } }>();
+  expect(salvo.settings.compactColumns).toBe(0);
+});
+
 test('exporta e importa backup', async ({ page }) => {
   const app = new BingoApp(page);
   await app.abrirInicio();

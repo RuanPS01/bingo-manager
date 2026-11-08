@@ -59,6 +59,10 @@ const modeName = (id: string) => getMode(id)?.name ?? id;
 /** Quantos números o aviso de BINGO fica na tela antes de sumir sozinho. */
 const BANNER_DRAWS = 3;
 
+/** Largura mínima de um cartão compacto para os números continuarem legíveis (cerca de 8px). */
+const MIN_COMPACT_CARD = 66;
+const MAX_COMPACT_COLUMNS = 8;
+
 export function MatchView({ match, cards, theme, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
   const confirm = useConfirm();
   const evaluation = useMemo(() => evaluateMatch(match), [match]);
@@ -112,6 +116,25 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
 
   // Na visão compacta todos os jogos ficam numa grade única, para caberem de uma vez na tela.
   const flatResults = useMemo(() => groups.flatMap((g) => g.results), [groups]);
+
+  // Quantas colunas cabem mantendo os números legíveis (depende da largura da tela).
+  const compactGridRef = useRef<HTMLDivElement>(null);
+  const [maxColumns, setMaxColumns] = useState(MAX_COMPACT_COLUMNS);
+  useEffect(() => {
+    const el = compactGridRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      const fit = Math.floor((el.clientWidth + gap) / (MIN_COMPACT_CARD + gap));
+      setMaxColumns(Math.max(2, Math.min(MAX_COMPACT_COLUMNS, fit)));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [settings.compactView]);
+  const columns = settings.compactColumns ? Math.min(settings.compactColumns, maxColumns) : 0;
+  const columnOptions = [0, ...Array.from({ length: maxColumns - 1 }, (_, i) => i + 2)];
 
   const drawBall = (ball: number) => {
     if (readOnly) return;
@@ -592,8 +615,32 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
               </>
             )}
           </p>
+          {settings.compactView && (
+            <div className="columns-picker">
+              <span className="pref-label small">Colunas</span>
+              <div className="segmented" role="group" aria-label="Colunas da visão compacta">
+                {columnOptions.map((n) => (
+                  <button
+                    type="button"
+                    key={n}
+                    className={columns === n ? 'is-on' : ''}
+                    aria-pressed={columns === n}
+                    aria-label={n === 0 ? 'Colunas automáticas' : `${n} colunas`}
+                    onClick={() => dispatch({ type: 'settings', patch: { compactColumns: n } })}
+                  >
+                    {n === 0 ? 'Auto' : n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {settings.compactView ? (
-            <div className="games-grid games-grid-compact">
+            <div
+              ref={compactGridRef}
+              className="games-grid games-grid-compact"
+              data-columns={columns || 'auto'}
+              style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+            >
               {flatResults.map((r) => (
                 <GameCard key={r.game.key} result={r} lastBall={lastBall} draws={match.draws} compact />
               ))}

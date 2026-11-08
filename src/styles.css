@@ -2323,12 +2323,14 @@ button.ball-chip:disabled {
   min-width: 0;
   margin-bottom: 2px;
   line-height: 1.1;
+  /* textos do cartão crescem junto com ele quando há menos colunas */
+  font-size: clamp(0.62rem, 10cqi, 1.1rem);
 }
 
 .gc-name {
   flex: 1;
   min-width: 0;
-  font-size: 0.62rem;
+  font-size: 1em;
   font-weight: 800;
   color: var(--heading-ink);
   white-space: nowrap;
@@ -2337,17 +2339,17 @@ button.ball-chip:disabled {
 }
 
 .gc-head .chip-round {
-  min-width: 12px;
-  height: 12px;
-  padding: 0 2px;
-  font-size: 0.52rem;
+  min-width: 1.3em;
+  height: 1.3em;
+  padding: 0 0.2em;
+  font-size: 0.82em;
   background: var(--green-700);
   color: #fff;
 }
 
 .gc-game-name {
   max-width: 50%;
-  font-size: 0.52rem;
+  font-size: 0.82em;
   font-weight: 700;
   color: var(--green-ink);
   white-space: nowrap;
@@ -2357,7 +2359,7 @@ button.ball-chip:disabled {
 
 .bingo-grid-xs,
 .bingo-grid-xs .bingo-row {
-  gap: 1px;
+  gap: max(1px, 1.2cqi);
 }
 
 /* sem a linha B I N G O: a posição das colunas já é conhecida */
@@ -2373,7 +2375,7 @@ button.ball-chip:disabled {
   border: none;
   border-radius: 2px;
   background: var(--cell-soft);
-  font-size: min(0.62rem, 14cqi);
+  font-size: min(1.6rem, 14cqi);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -2381,6 +2383,12 @@ button.ball-chip:disabled {
 
 .bingo-grid-xs .bingo-cell.is-free {
   background: var(--blue-50);
+}
+
+/* a estrela do espaço livre acompanha o tamanho dos números */
+.bingo-grid-xs .bingo-cell svg {
+  width: 0.9em;
+  height: 0.9em;
 }
 
 .bingo-grid-xs .bingo-cell.is-marked {
@@ -2424,7 +2432,7 @@ button.ball-chip:disabled {
   border-radius: 4px;
   background: var(--blue-50);
   color: var(--accent-ink);
-  font-size: 0.5rem;
+  font-size: clamp(0.5rem, 8cqi, 0.86rem);
   font-weight: 700;
   line-height: 1.5;
   max-width: 100%;
@@ -2455,18 +2463,19 @@ button.ball-chip:disabled {
   .game-card-compact {
     padding: 5px;
   }
+}
 
-  .gc-name {
-    font-size: 0.74rem;
-  }
+.columns-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: -4px 0 10px;
+}
 
-  .bingo-grid-xs .bingo-cell {
-    font-size: min(0.78rem, 14cqi);
-  }
-
-  .mode-progress.is-compact li {
-    font-size: 0.6rem;
-  }
+.columns-picker .segmented button {
+  min-width: 34px;
+  justify-content: center;
 }
 
 /* Preferências */

@@ -220,7 +220,17 @@ for (const cartela of NUMEROS_CARTELAS) {
         const compacta = i % 5 === 3;
         await app.visaoCompacta(compacta);
         await expect(page.locator('.games-grid-compact')).toHaveCount(compacta ? 1 : 0);
-        if (compacta) resumo.eventos.add('visão compacta');
+        if (compacta) {
+          // cada partida compacta usa uma quantidade de colunas: automática, 3, 2 e 4
+          const colunas = [0, 3, 2, 4][Math.floor(i / 5) % 4];
+          await page
+            .getByRole('group', { name: 'Colunas da visão compacta' })
+            .getByRole('button', { name: colunas ? `${colunas} colunas` : 'Colunas automáticas', exact: true })
+            .click();
+          await expect(page.locator('.games-grid-compact')).toHaveAttribute('data-columns', String(colunas || 'auto'));
+          resumo.eventos.add('visão compacta');
+          resumo.eventos.add('colunas da visão compacta');
+        }
 
         // ---------- Funções da partida ----------
         const conferir = async () => {

@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepAwake: true,
   hideInstallTip: false,
   compactView: false,
+  compactColumns: 0,
   theme: 'auto',
 };
 
@@ -103,6 +104,8 @@ export function sanitizeState(raw: unknown): AppState | null {
   const history = Array.isArray(raw.history) ? raw.history.map(normalizeMatch).filter(notNull) : [];
   const settings = isObject(raw.settings) ? { ...DEFAULT_SETTINGS, ...raw.settings } : base.settings;
   if (!['auto', 'light', 'dark'].includes(String(settings.theme))) settings.theme = 'auto';
+  const cols = Number(settings.compactColumns);
+  if (!Number.isInteger(cols) || (cols !== 0 && (cols < 2 || cols > 8))) settings.compactColumns = 0;
   return {
     version: 1,
     cards,
