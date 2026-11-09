@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Gerenciador das cartelas do Show de Prêmios APAE Santa Rita do Sapucaí 2026",
+  "description": "Bingo Manager: acompanhe cartelas, sorteie números e gere cartelas em PDF",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -11,12 +11,15 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/e2e",
     "test:e2e": "playwright test",
-    "test:e2e:fluxos": "playwright test tests/e2e/fluxos.spec.ts",
+    "test:e2e:fluxos": "playwright test tests/e2e/fluxos.spec.ts tests/e2e/ferramentas.spec.ts tests/e2e/ia.spec.ts tests/e2e/transmissao.spec.ts",
     "test:e2e:simulacao": "playwright test tests/e2e/simulacao.spec.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "jspdf": "^4.2.1",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

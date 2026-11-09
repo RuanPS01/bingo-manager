@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { BingoApp } from './app';
+import { BingoApp, cadastrarCartelas } from './app';
 import {
   CARTELAS,
   MODOS,
@@ -19,7 +19,7 @@ import {
  * um usuário faria. A cada número sorteado o resultado do app é comparado com
  * o oráculo independente (tests/e2e/oracle.ts).
  *
- * Fluxos exercitados: escolha de jogos pela rodada, pela cartela inteira e jogo
+ * Fluxos exercitados: escolha de jogos pelo atalho por jogo, pela cartela inteira e jogo
  * a jogo; os 23 modos; digitação em vários formatos com Enter, com o botão
  * Marcar e pelo painel de 1 a 75; números inválidos e repetidos; desfazer;
  * remover número (cancelando e confirmando); recarregar a página; sair e
@@ -100,13 +100,9 @@ class Partida {
   }
 }
 
+/** Nomes dos jogos, sem repetir, na ordem em que aparecem (cartela por cartela). */
 function tituloSugerido(jogos: Jogo[]): string {
-  const premios = [...new Set(jogos.map((j) => j.premio))].map((id) => PREMIOS.find((p) => p.id === id)!);
-  if (premios.length === 1) return `${premios[0].rodada}ª rodada: ${premios[0].nome}`;
-  return premios
-    .sort((a, b) => a.rodada - b.rodada)
-    .map((p) => p.nome)
-    .join(' + ');
+  return [...new Set(jogos.map((j) => PREMIOS.find((p) => p.id === j.premio)!.nome))].join(' + ');
 }
 
 function formatar(n: number, k: number): string {
@@ -172,6 +168,7 @@ for (const cartela of NUMEROS_CARTELAS) {
     const registros: number[][] = [];
     const resumo = { sorteios: 0, conquistas: 0, comemoracoes: 0, conferencias: 0, eventos: new Set<string>() };
 
+    await cadastrarCartelas(page);
     await app.abrirInicio();
     for (const c of NUMEROS_CARTELAS) {
       await expect(page.locator(`.card-item[data-card="${c}"] .card-name-text`)).toHaveText(nomes[c]);
@@ -191,8 +188,12 @@ for (const cartela of NUMEROS_CARTELAS) {
         await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
         await expect(page.locator('.setup')).toBeVisible();
         if (cfg.selecao === 'rodada') {
-          await page.locator('.round-btn', { hasText: `${cfg.rodada!.rodada}ª rodada` }).click();
-          resumo.eventos.add('seleção pela rodada');
+          await page
+            .getByRole('group', { name: 'Atalho por jogo' })
+            .locator('.round-btn')
+            .filter({ has: page.getByText(cfg.rodada!.nome, { exact: true }) })
+            .click();
+          resumo.eventos.add('seleção pelo atalho por jogo');
         } else if (cfg.selecao === 'cartela') {
           await page.locator(`.setup-card[data-card="${cartela}"] .setup-card-head`).click();
           resumo.eventos.add('seleção da cartela inteira');

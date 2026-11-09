@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { BingoApp, STORAGE_KEY } from './app';
+import { BingoApp, LEGACY_STORAGE_KEY, cadastrarCartelas } from './app';
 import { bola } from './oracle';
 
 /** Inicia uma partida simples: um jogo de uma cartela, modo cartela cheia. */
@@ -23,19 +23,22 @@ async function finalizar(app: BingoApp) {
 }
 
 test('cadastra, valida, renomeia, edita e exclui cartelas', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await expect(page.locator('.card-item')).toHaveCount(3);
 
   // validações do formulário
   await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
-  await expect(app.modal.getByRole('heading')).toHaveText('Adicionar cartela ou jogo');
+  await expect(app.modal.getByRole('heading')).toHaveText('Adicionar cartela');
   await app.modal.getByRole('button', { name: 'Só salvar' }).click();
   await expect(app.modal.getByText('Informe o nome ou o número da cartela')).toBeVisible();
-  await app.modal.getByPlaceholder('Ex.: 01066').fill('01062');
+  await app.modal.getByPlaceholder('Ex.: 0001').fill('01062');
   await expect(app.modal.getByText('Já existe uma cartela com esse número')).toBeVisible();
-  await app.modal.getByPlaceholder('Ex.: 01066').fill('01070');
-  await app.modal.getByPlaceholder('Ex.: Bruna').fill('Teste');
+  await app.modal.getByPlaceholder('Ex.: 0001').fill('01070');
+  await app.modal.getByPlaceholder('Ex.: Ana').fill('Teste');
+  // uma cartela nova começa com um jogo, já com nome
+  await expect(app.modal.getByRole('textbox', { name: 'Nome do jogo 1' })).toHaveValue('Jogo 1');
 
   // prettier-ignore
   const numeros = [
@@ -64,7 +67,7 @@ test('cadastra, valida, renomeia, edita e exclui cartelas', async ({ page }) => 
   const nova = page.locator('.card-item[data-card="01070"]');
   await expect(nova.locator('.card-name-text')).toHaveText('Teste');
   await expect(page.locator('.card-item')).toHaveCount(4);
-  await expect(page.locator('.panel-head', { hasText: 'Cartelas disponíveis' })).toContainText('4 cartela(s)');
+  await expect(page.locator('.panel-head', { hasText: 'Minhas cartelas' })).toContainText('4 cartela(s)');
 
   // renomear no próprio cartão: Enter salva, Escape cancela, vazio mostra o número
   await nova.getByRole('button', { name: 'Renomear cartela 01070' }).click();
@@ -85,7 +88,7 @@ test('cadastra, valida, renomeia, edita e exclui cartelas', async ({ page }) => 
   await nova.getByRole('button', { name: 'Salvar' }).click();
 
   // partida com a cartela nova e correção de número com a partida em andamento
-  await iniciarPartida(page, '01070', 'Moto 0 km');
+  await iniciarPartida(page, '01070', 'Jogo 1');
   await marcar(app, 17);
   await expect(app.feedback).toHaveText('I-17 marcado em 1 jogo(s): Ana.');
   await app.irParaInicio();
@@ -94,7 +97,7 @@ test('cadastra, valida, renomeia, edita e exclui cartelas', async ({ page }) => 
   await app.modal.getByRole('button', { name: 'Só salvar' }).click();
   await expect(nova.locator('.bingo-cell').filter({ hasText: /^21$/ })).toHaveCount(1);
   await page.getByRole('button', { name: 'Continuar partida' }).click();
-  await expect(page.locator('.game-card[data-game="' + (await idDaCartela(app, '01070')) + '::moto"]')).toHaveAttribute(
+  await expect(page.locator(`.game-card[data-game="${await chaveDoJogo(app, '01070', 'Jogo 1')}"]`)).toHaveAttribute(
     'data-marked',
     '0',
   );
@@ -116,21 +119,26 @@ test('cadastra, valida, renomeia, edita e exclui cartelas', async ({ page }) => 
   expect(salvo.history).toHaveLength(1);
 });
 
-async function idDaCartela(app: BingoApp, numero: string): Promise<string> {
-  const salvo = await app.lerArmazenamento<{ cards: { id: string; number: string }[] }>();
-  return salvo.cards.find((c) => c.number === numero)!.id;
+/** Chave do jogo na partida (id da cartela e do jogo), lida do que foi salvo. */
+async function chaveDoJogo(app: BingoApp, numero: string, jogo: string): Promise<string> {
+  const salvo = await app.lerArmazenamento<{
+    cards: { id: string; number: string; games: { id: string; name: string }[] }[];
+  }>();
+  const cartela = salvo.cards.find((c) => c.number === numero)!;
+  return `${cartela.id}::${cartela.games.find((g) => g.name === jogo)!.id}`;
 }
 
-test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga com eles', async ({ page }) => {
+test('cadastra cartela de um jogo e cartela com números diferentes por jogo, e joga com elas', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
 
-  // jogo avulso cadastrado pela tela inicial, com os números digitados de uma vez
+  // cartela de um jogo só, com os números digitados de uma vez
   await page.locator('.add-tile').click();
-  await app.modal.getByRole('button', { name: 'Jogo avulso', exact: true }).click();
-  await app.modal.getByPlaceholder('Ex.: Binguinho da Ana').fill('Binguinho da Ana');
-  const nomeJogo = app.modal.getByRole('textbox', { name: 'Nome do jogo avulso' });
+  await app.modal.getByPlaceholder('Ex.: Ana').fill('Binguinho da Ana');
+  const nomeJogo = app.modal.getByRole('textbox', { name: 'Nome do jogo 1' });
   await expect(nomeJogo).toHaveValue('Jogo 1');
+  await expect(app.modal.getByRole('button', { name: /Remover o jogo/ })).toHaveCount(0);
   const rapido = app.modal.getByRole('textbox', { name: 'Digitar todos os números de uma vez' });
   await rapido.fill('1 2 3');
   await rapido.press('Enter');
@@ -142,7 +150,7 @@ test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga co
   await expect(celulas.nth(12)).toHaveValue('48');
   await nomeJogo.fill('');
   await app.modal.getByRole('button', { name: 'Salvar e jogar' }).click();
-  await expect(app.modal.getByText('Dê um nome a cada jogo avulso')).toBeVisible();
+  await expect(app.modal.getByText('Dê um nome a cada jogo')).toBeVisible();
   await nomeJogo.fill('Binguinho');
   await app.modal.getByRole('button', { name: 'Salvar e jogar' }).click();
 
@@ -162,14 +170,16 @@ test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga co
   await expect(app.avisoBingo).toContainText('Quina: Binguinho da Ana, Binguinho');
 
   // cartela com 2 jogos de números diferentes, incluída no meio da partida
-  await page.getByRole('button', { name: 'Adicionar cartela ou jogo' }).click();
-  await app.modal.getByPlaceholder('Ex.: Bruna').fill('Duda');
-  await app.modal.getByPlaceholder('Ex.: 01066').fill('01080');
-  for (const premio of ['R$ 1.500,00', 'Smart TV 43"', 'Moto 0 km']) {
-    await app.modal.locator('.chip-toggle', { hasText: premio }).click();
-  }
-  await expect(app.modal.locator('.chip-toggle[aria-pressed="true"]')).toHaveCount(2);
-  await app.modal.getByLabel('Mesmos números em todos os jogos (como na cartela impressa)').uncheck();
+  await page.getByRole('button', { name: 'Adicionar cartela', exact: true }).click();
+  await app.modal.getByPlaceholder('Ex.: Ana').fill('Duda');
+  await app.modal.getByPlaceholder('Ex.: 0001').fill('01080');
+  await app.modal.getByRole('textbox', { name: 'Nome do jogo 1' }).fill('Bicicleta');
+  for (let i = 0; i < 2; i++) await app.modal.getByRole('button', { name: 'Adicionar jogo' }).click();
+  await expect(app.modal.getByRole('textbox', { name: 'Nome do jogo 3' })).toHaveValue('Jogo 3');
+  await app.modal.getByRole('textbox', { name: 'Nome do jogo 2' }).fill('Smartphone');
+  await app.modal.getByRole('button', { name: 'Remover o jogo Jogo 3' }).click();
+  await expect(app.modal.getByRole('textbox', { name: /Nome do jogo/ })).toHaveCount(2);
+  await app.modal.getByLabel('Mesmos números em todos os jogos').uncheck();
   await app.modal.getByRole('tab', { name: /Bicicleta/ }).click();
   await app.modal
     .getByRole('textbox', { name: 'Digitar todos os números de uma vez' })
@@ -189,9 +199,13 @@ test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga co
 
   const duda = page.locator('.card-group[data-card="01080"]');
   await expect(duda.locator('.game-card')).toHaveCount(2);
-  const id = await idDaCartela(app, '01080');
-  await expect(page.locator(`.game-card[data-game="${id}::bicicleta"]`)).toHaveAttribute('data-marked', '3');
-  await expect(page.locator(`.game-card[data-game="${id}::smartphone"]`)).toHaveAttribute('data-marked', '1');
+  await expect(page.locator(`.game-card[data-game="${await chaveDoJogo(app, '01080', 'Bicicleta')}"]`)).toHaveAttribute(
+    'data-marked',
+    '3',
+  );
+  await expect(
+    page.locator(`.game-card[data-game="${await chaveDoJogo(app, '01080', 'Smartphone')}"]`),
+  ).toHaveAttribute('data-marked', '1');
 
   // tudo continua lá depois de recarregar
   await page.reload();
@@ -199,32 +213,33 @@ test('adiciona jogo avulso e cartela com números diferentes por jogo, e joga co
   await finalizar(app);
 
   const cartaoDuda = page.locator('.card-item[data-card="01080"]');
-  await expect(cartaoDuda.locator('.prize-list li')).toHaveText(['1Bicicleta Aro 26', '2Smartphone']);
+  await expect(cartaoDuda.locator('.prize-list li')).toHaveText(['1Bicicleta', '2Smartphone']);
   await expect(cartaoDuda).toContainText('Números do 1º jogo');
-  await expect(
-    page.locator('.card-item', { hasText: 'Binguinho da Ana' }).locator('.prize-list li.is-custom'),
-  ).toHaveText('Binguinho');
+  await expect(page.locator('.card-item', { hasText: 'Binguinho da Ana' }).locator('.prize-list li')).toHaveText(
+    'Binguinho',
+  );
 
   // ao editar, os jogos aparecem com números separados
   await cartaoDuda.getByRole('button', { name: 'Editar números e jogos' }).click();
-  await expect(app.modal.getByLabel('Mesmos números em todos os jogos (como na cartela impressa)')).not.toBeChecked();
+  await expect(app.modal.getByLabel('Mesmos números em todos os jogos')).not.toBeChecked();
   await app.modal.getByRole('tab', { name: /Smartphone/ }).click();
   await expect(app.modal.locator('.grid-editor input').first()).toHaveValue('10');
   await app.modal.getByRole('button', { name: 'Cancelar', exact: true }).click();
 
   const salvo = await app.lerArmazenamento<{
-    cards: { name: string; games: { id: string; prizeId: string | null; name: string; grid: number[] }[] }[];
+    cards: { name: string; games: { id: string; name: string; grid: number[] }[] }[];
   }>();
   expect(salvo.cards).toHaveLength(5);
   const dudaSalva = salvo.cards.find((c) => c.name === 'Duda')!;
-  expect(dudaSalva.games.map((g) => g.id)).toEqual(['bicicleta', 'smartphone']);
+  expect(dudaSalva.games.map((g) => g.name)).toEqual(['Bicicleta', 'Smartphone']);
   expect(dudaSalva.games[0].grid).not.toEqual(dudaSalva.games[1].grid);
   const avulso = salvo.cards.find((c) => c.name === 'Binguinho da Ana')!;
   expect(avulso.games).toHaveLength(1);
-  expect(avulso.games[0]).toMatchObject({ prizeId: null, name: 'Binguinho' });
+  expect(avulso.games[0]).toEqual({ id: expect.any(String), name: 'Binguinho', grid: expect.any(Array) });
 });
 
 test('a partida continua depois de fechar um padrão, sem precisar fechar o aviso', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await iniciarPartida(page, '01065');
@@ -293,6 +308,7 @@ test('a partida continua depois de fechar um padrão, sem precisar fechar o avis
 });
 
 test('visão compacta mostra todos os jogos de uma vez, inclusive no celular', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
@@ -394,6 +410,7 @@ test.describe('tema escuro', () => {
         return r + g + b < 120;
       });
     const preferencia = page.getByRole('group', { name: 'Tema' });
+    await cadastrarCartelas(page);
 
     // automático segue o sistema (escuro neste teste)
     await app.abrirInicio();
@@ -439,7 +456,7 @@ test.describe('tema escuro', () => {
     expect(await app.numerosForaDosCartoes()).toEqual([]);
     await app.verPainel('Painel');
     await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
-    await page.getByRole('button', { name: 'Adicionar cartela ou jogo' }).click();
+    await page.getByRole('button', { name: 'Adicionar cartela', exact: true }).click();
     await expect.poll(() => app.textosComBaixoContraste()).toEqual([]);
     await app.modal.getByRole('button', { name: 'Cancelar', exact: true }).click();
 
@@ -454,6 +471,7 @@ test.describe('tema escuro', () => {
 });
 
 test('visão compacta: escolher a quantidade de colunas', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await page.locator('.start-card').getByRole('button', { name: 'Iniciar jogo' }).click();
@@ -528,6 +546,7 @@ test('visão compacta: escolher a quantidade de colunas', async ({ page }) => {
 });
 
 test('números sorteados: recolher em uma linha com rolagem horizontal', async ({ page }) => {
+  await cadastrarCartelas(page);
   await page.setViewportSize({ width: 360, height: 740 });
   const app = new BingoApp(page);
   await app.abrirInicio();
@@ -600,6 +619,7 @@ test('números sorteados: recolher em uma linha com rolagem horizontal', async (
 });
 
 test('exporta e importa backup', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await iniciarPartida(page, '01065');
@@ -611,7 +631,7 @@ test('exporta e importa backup', async ({ page }) => {
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Exportar backup' }).click(),
   ]);
-  expect(download.suggestedFilename()).toMatch(/^bingo-apae-backup-.*\.json$/);
+  expect(download.suggestedFilename()).toMatch(/^bingo-manager-backup-.*\.json$/);
   const backup = readFileSync(await download.path(), 'utf8');
   const dados = JSON.parse(backup);
   expect(dados.cards).toHaveLength(3);
@@ -635,7 +655,7 @@ test('exporta e importa backup', async ({ page }) => {
   await expect(page.locator('.history-item')).toHaveCount(1);
 });
 
-test('migra dados salvos no formato antigo (campo owner)', async ({ page }) => {
+test('migra os dados da primeira versão do app (outra chave e campo owner)', async ({ page }) => {
   const antigo = {
     version: 1,
     cards: [
@@ -675,20 +695,26 @@ test('migra dados salvos no formato antigo (campo owner)', async ({ page }) => {
         sessionStorage.setItem('semeado', '1');
       }
     },
-    [STORAGE_KEY, JSON.stringify(antigo)],
+    [LEGACY_STORAGE_KEY, JSON.stringify(antigo)],
   );
   const app = new BingoApp(page);
   await app.abrirInicio();
   await expect(page.locator('.card-item[data-card="01062"] .card-name-text')).toHaveText('Bruna Antiga');
+  await expect(page.locator('.card-item[data-card="01062"] .prize-list li')).toHaveText('Bicicleta Aro 26');
   await page.getByRole('button', { name: 'Continuar partida' }).click();
   await expect(page.locator('.card-group[data-card="01062"] .card-name-text')).toHaveText('Bruna Antiga');
   await marcar(app, 54);
   await expect(app.feedback).toHaveText('G-54 marcado em 1 jogo(s): Bruna Antiga.');
   await marcar(app, 69);
   await expect(page.locator('.achievement-list li')).toHaveCount(1);
+  // daqui em diante tudo é salvo na chave nova
+  const salvo = await app.lerArmazenamento<{ cards: { name: string }[]; activeMatch: { draws: number[] } }>();
+  expect(salvo.cards[0].name).toBe('Bruna Antiga');
+  expect(salvo.activeMatch.draws).toEqual([6, 19, 41, 54, 69]);
 });
 
 test('navegação: botão voltar do navegador e endereços inválidos', async ({ page }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await iniciarPartida(page, '01064');
@@ -712,6 +738,7 @@ test('navegação: botão voltar do navegador e endereços inválidos', async ({
 });
 
 test('duas abas abertas ficam sincronizadas', async ({ page, context }) => {
+  await cadastrarCartelas(page);
   const app = new BingoApp(page);
   await app.abrirInicio();
   await iniciarPartida(page, '01062');
@@ -728,9 +755,10 @@ test('duas abas abertas ficam sincronizadas', async ({ page, context }) => {
 });
 
 test('PWA: manifesto, ícones, service worker, uso offline e instalação', async ({ page, context, request }) => {
+  await cadastrarCartelas(page);
   const manifesto = await (await request.get('./manifest.webmanifest')).json();
   expect(manifesto).toMatchObject({ display: 'standalone', start_url: './', scope: './', lang: 'pt-BR' });
-  expect(manifesto.name).toBe('Bingo APAE 2026');
+  expect(manifesto.name).toBe('Bingo Manager');
   const tamanhos = manifesto.icons.map((i: { sizes: string; purpose: string }) => `${i.sizes} ${i.purpose}`);
   expect(tamanhos).toEqual(expect.arrayContaining(['192x192 any', '512x512 any', '512x512 maskable']));
   for (const icone of manifesto.icons) {
@@ -797,6 +825,7 @@ test('PWA: dica de instalação no iPhone pode ser escondida', async ({ browser,
 });
 
 test('layout mobile: nada passa da largura da tela em 360px', async ({ page }) => {
+  await cadastrarCartelas(page);
   await page.setViewportSize({ width: 360, height: 740 });
   const app = new BingoApp(page);
   // Se algum elemento for mais largo que a tela, o navegador do celular alarga a página
@@ -831,6 +860,7 @@ test('layout mobile: nada passa da largura da tela em 360px', async ({ page }) =
 });
 
 test('interface sem emojis, setas ou travessões', async ({ page }) => {
+  await cadastrarCartelas(page);
   const proibidos = /[–—←-⇿➔-➿⬅-⬇\u{1f300}-\u{1faff}\u{2600}-\u{26ff}]/u;
   const conferir = async (tela: string) => {
     const texto = await page.evaluate(() => document.body.innerText);
@@ -850,4 +880,14 @@ test('interface sem emojis, setas ou travessões', async ({ page }) => {
   await conferir('partida com aviso de BINGO');
   await app.verPainel('Painel');
   await conferir('painel');
+
+  await page.goto('./#/sorteador');
+  await page.getByRole('button', { name: 'Configurações do sorteio' }).click();
+  await page.getByRole('button', { name: 'Sortear', exact: true }).click();
+  await expect(page.locator('.drawer-ball')).toHaveAttribute('data-state', 'shown');
+  await conferir('sorteador');
+  await page.goto('./#/gerador');
+  await conferir('gerador de cartelas');
+  await page.getByRole('button', { name: 'Jogos avulsos' }).click();
+  await conferir('gerador de jogos avulsos');
 });

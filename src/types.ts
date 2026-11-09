@@ -1,22 +1,10 @@
 /** Uma grade 5x5 em ordem de linha. O valor 0 é o espaço livre central. */
 export type Grid = number[];
 
-export interface Prize {
-  id: string;
-  round: number;
-  name: string;
-  sponsor: string;
-}
-
-/**
- * Jogo (tabela BINGO) de uma cartela. Pode ser um prêmio do Show de Prêmios
- * ou um jogo avulso cadastrado pelo usuário (ex.: binguinho).
- */
+/** Jogo (tabela BINGO) de uma cartela, com nome livre (ex.: "Rodada 1", "Prêmio principal"). */
 export interface CardGame {
-  /** Identificador do jogo na cartela. Nos prêmios do Show é o próprio id do prêmio. */
+  /** Identificador do jogo dentro da cartela. */
   id: string;
-  /** Prêmio do Show de Prêmios, ou null para um jogo avulso. */
-  prizeId: string | null;
   /** Nome exibido do jogo. */
   name: string;
   grid: Grid;
@@ -25,7 +13,7 @@ export interface CardGame {
 /** Cartela: um ou mais jogos, cada um com seus números. */
 export interface Card {
   id: string;
-  /** Número impresso na cartela (opcional em cartelas cadastradas à mão). */
+  /** Número impresso na cartela (opcional). */
   number: string;
   /** Nome que identifica a cartela (ex.: o nome de quem comprou). Editável. */
   name: string;
@@ -42,8 +30,9 @@ export interface MatchGame {
   cardNumber: string;
   cardName: string;
   gameId: string;
-  prizeId: string | null;
   gameName: string;
+  /** Posição do jogo na cartela (1, 2, 3...); 0 quando desconhecida. */
+  gameIndex: number;
   grid: Grid;
 }
 
@@ -74,10 +63,74 @@ export interface Settings {
   theme: 'auto' | 'light' | 'dark';
 }
 
+/** Configurações do sorteador. */
+export interface DrawerConfig {
+  /** Maior número do globo (75 no bingo B I N G O; 90 ou outro valor de 10 a 99). */
+  maxBall: number;
+  /** Mostrar a letra (B, I, N, G, O) junto do número; só vale com 75 bolas. */
+  showLetters: boolean;
+  /** Animação do sorteio. */
+  animation: 'globo' | 'simples' | 'nenhuma';
+  /** Duração da animação, em milissegundos. */
+  animationMs: number;
+  /** Sorteio automático a cada intervalo. */
+  auto: boolean;
+  /** Intervalo do sorteio automático, em segundos. */
+  autoSeconds: number;
+  /** Anunciar o número por voz. */
+  voice: boolean;
+  /** Efeitos sonoros. */
+  sound: boolean;
+  /** Marcar também cada número na partida em andamento. */
+  syncMatch: boolean;
+  /** Transmitir as bolas para os celulares dos participantes. */
+  broadcast: boolean;
+}
+
+export interface DrawerState {
+  config: DrawerConfig;
+  /** Números sorteados, na ordem do sorteio. */
+  draws: number[];
+  /** Muda a cada "Reiniciar", para quem recebe a transmissão separar um sorteio do outro. */
+  round: number;
+}
+
+/** Configurações do gerador de cartelas em PDF. */
+export interface GeneratorConfig {
+  /** Cartelas com vários jogos (como as de evento) ou jogos avulsos (uma tabela cada). */
+  kind: 'cartelas' | 'avulsos';
+  title: string;
+  subtitle: string;
+  footer: string;
+  /** Quantidade de cartelas (ou de jogos avulsos). */
+  quantity: number;
+  /** Jogos em cada cartela (só para "cartelas"). */
+  gamesPerCard: number;
+  /** Nome de cada jogo da cartela (ex.: prêmio de cada rodada). */
+  gameNames: string[];
+  /** Todos os jogos de uma cartela com os mesmos números. */
+  sameNumbers: boolean;
+  /** Número da primeira cartela. */
+  startNumber: number;
+  /** Cartelas (ou jogos avulsos) por página. */
+  perPage: number;
+  paper: 'a4' | 'letter';
+  /** Espaço livre no centro da tabela. */
+  freeCenter: boolean;
+  /** Números de cada coluna em ordem crescente. */
+  sortColumns: boolean;
+  /** Linhas para nome e telefone de quem comprou. */
+  identification: boolean;
+  /** Cor principal (hexadecimal). */
+  color: string;
+}
+
 export interface AppState {
   version: 1;
   cards: Card[];
   activeMatch: Match | null;
   history: Match[];
   settings: Settings;
+  drawer: DrawerState;
+  generator: GeneratorConfig;
 }

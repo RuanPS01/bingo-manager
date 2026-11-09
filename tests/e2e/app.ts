@@ -1,7 +1,32 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { GRUPO_MODO, NOMES_MODOS, PREMIOS } from './oracle';
+import { CARTELAS, GRUPO_MODO, NOMES_MODOS, NUMEROS_CARTELAS, PREMIOS } from './oracle';
 
-export const STORAGE_KEY = 'bingo-apae-2026:v1';
+export const STORAGE_KEY = 'bingo-manager:v1';
+/** Chave da primeira versão do app, que ainda é lida uma vez para migrar os dados. */
+export const LEGACY_STORAGE_KEY = 'bingo-apae-2026:v1';
+
+/**
+ * O app começa sem cartelas. Os testes cadastram as 3 cartelas do oráculo direto no
+ * armazenamento, com 5 jogos de mesmos números cada, para não repetir o formulário em todo teste.
+ */
+export function cartelasDoOraculo() {
+  return NUMEROS_CARTELAS.map((numero) => ({
+    id: `cartela-${numero}`,
+    number: numero,
+    name: CARTELAS[numero].nome,
+    games: PREMIOS.map((p) => ({ id: p.id, name: p.nome, grid: [...CARTELAS[numero].grade] })),
+  }));
+}
+
+/** Grava as cartelas antes de o app abrir, só na primeira visita (recarregar mantém o que o teste fez). */
+export async function cadastrarCartelas(page: Page) {
+  await page.addInitScript(
+    ([key, value]) => {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, JSON.stringify({ version: 1, cards: cartelasDoOraculo(), activeMatch: null, history: [] })],
+  );
+}
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -172,7 +197,8 @@ export class BingoApp {
       while (walker.nextNode()) {
         const el = walker.currentNode.parentElement;
         const texto = walker.currentNode.textContent?.trim();
-        if (!el || !texto || vistos.has(el) || el.classList.contains('sr-only')) continue;
+        // a prévia de impressão (SVG) é papel branco de propósito, em qualquer tema
+        if (!el || !texto || vistos.has(el) || el.classList.contains('sr-only') || el.closest('svg')) continue;
         vistos.add(el);
         const r = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
