@@ -5,7 +5,7 @@ Aplicação web (PWA, pensada primeiro para o celular) para jogar bingo de 75 bo
 - **Acompanhar cartelas:** cadastre as suas cartelas e marque os números sorteados em todas de uma vez, com 23 modos de vitória e aviso de BINGO.
 - **Sorteador:** sorteie as bolas com animação, voz e modo telão (tela cheia) para projetar, e transmita os números para os celulares dos participantes.
 - **Gerador de cartelas:** monte cartelas com vários jogos ou jogos avulsos e baixe em PDF para imprimir, com lista de conferência.
-- **Cadastro por foto com IA:** tire uma foto da cartela e a IA da Anthropic (Claude) preenche o número e os jogos para você conferir.
+- **Cadastro por foto com IA:** tire uma foto da cartela e a IA (Claude, OpenAI, Gemini ou Ollama local, com modelos de reserva) preenche o número e os jogos para você conferir.
 
 Tudo roda no navegador e fica salvo no próprio aparelho. Funciona sem internet depois do primeiro acesso.
 
@@ -98,14 +98,36 @@ Arquivos: `src/lib/mqtt.ts` (cliente MQTT 3.1.1 mínimo sobre WebSocket), `src/l
 
 ### Cadastro por foto com IA
 
-- No formulário de cartela, **Tirar ou escolher foto** abre a câmera ou a galeria do celular. A foto vai para a API da Anthropic, e o modelo devolve o número da cartela, o nome escrito nela (se houver) e todas as tabelas, cada uma com o nome impresso junto dela (prêmio, rodada) e os 25 números.
+- No formulário de cartela, **Tirar ou escolher foto** abre a câmera ou a galeria do celular. A foto vai para o modelo de IA configurado, que devolve o número da cartela, o nome escrito nela (se houver) e todas as tabelas, cada uma com o nome impresso junto dela (prêmio, rodada) e os 25 números.
 - O formulário é preenchido com o que foi lido, mas **nada é salvo sem a pessoa conferir**: casas que a IA não conseguiu ler ou que estão fora da faixa da coluna já aparecem marcadas em vermelho, e os avisos da leitura (por exemplo, "casa borrada na linha 1, coluna B") aparecem logo abaixo da foto. Se todas as tabelas tiverem os mesmos números, a opção "Mesmos números em todos os jogos" já vem marcada.
-- **Configuração** (na primeira leitura ou em **Preferências e dados > Leitura de cartelas por foto**):
-  - **Chave da API** da sua conta na Anthropic (crie em platform.claude.com, em API Keys). Cada leitura é cobrada na sua conta.
-  - **Modelo:** Claude Opus 5.5 (recomendado, lê com mais precisão), Claude Sonnet 5.5, Claude Haiku 5.5, Claude Fable 5.1 ou outro ID de modelo digitado à mão.
-  - **Remover chave** apaga a chave do aparelho.
-- **Privacidade:** a chave fica salva só neste aparelho, numa entrada separada do `localStorage` (`bingo-manager:ia`): não entra no backup, não é sincronizada entre abas junto com os dados e só é enviada para a Anthropic, junto com a foto, na hora da leitura. Como o app não tem servidor, a chamada sai direto do navegador.
-- **Detalhes técnicos** (`src/lib/ai.ts`): usa o SDK oficial `@anthropic-ai/sdk` no navegador, com saída estruturada em JSON (`output_config.format`) e esforço `medium` nos modelos da lista. A foto é aberta já na orientação certa, reduzida para no máximo 2576 px no maior lado e enviada em JPEG. O fallback do servidor (`fallbacks: "default"`) fica ligado: se o modelo recusar a foto por engano, a API tenta de novo em outro modelo na mesma chamada. Erros comuns (chave recusada, modelo inexistente, limite de uso, sem internet, recusa, foto sem cartela) aparecem com mensagens em português, e a leitura pode ser cancelada.
+
+#### Configuração: provedor, modelos e chaves
+
+Na primeira leitura ou em **Preferências e dados > Leitura de cartelas por foto**, a tela **Provedor e credenciais** monta uma **fila de até 6 modelos**: o principal e até 5 reservas.
+
+- **Provedor** de cada modelo: Claude (Anthropic), OpenAI, Gemini (Google) ou Ollama (local). Escolha modelos que leem imagens.
+- **Modelo:** a lista é **consultada agora no provedor**, com a chave digitada (700 ms depois de parar de digitar, guardada por 10 minutos). Da OpenAI só entram modelos de conversa, do mais novo para o mais antigo; do Gemini, só os que geram conteúdo. Se a consulta falhar (sem chave, sem internet, chave recusada), aparece o catálogo do app, que pode estar desatualizado. Há sempre **Padrão do provedor** e **Nome customizado**, para digitar qualquer ID.
+- **Chave de API** de cada provedor, guardada só neste aparelho. Uma reserva do mesmo provedor de um modelo anterior mostra **Chave já preenchida no modelo N** e usa a mesma chave (assim dá para alternar entre modelos de um provedor digitando a chave uma vez); **Usar outra chave** separa.
+- **Ollama:** em vez da chave, o endereço do servidor local (padrão `http://localhost:11434`). Para o navegador conseguir falar com ele, abra o Ollama liberando o site, por exemplo `OLLAMA_ORIGINS=https://ruanps.com.br ollama serve`, e use um modelo com visão (gemma3, qwen2.5vl, llama3.2-vision). O navegador pode pedir permissão para o site acessar a rede local.
+- **Trocar o provedor** de um modelo zera o modelo e a chave dele. A lixeira remove uma reserva.
+- **Testar modelos** faz uma chamada curta a cada um e mostra "Funcionou" ou a frase do provedor (chave recusada, modelo inexistente, sem conexão).
+- **Remover configuração** apaga tudo do aparelho.
+
+#### Fila com reserva
+
+- A leitura começa pelo principal. Se ele falhar, o app tenta o próximo da lista sozinho, e a pessoa só vê o resultado.
+- O modelo que falhou **sai da frente por um tempo**, em memória (recarregar a página volta a tentar todos): limite de uso, ocupado ou sem resposta, pelo tempo que o provedor pedir (`retry-after`; 60 s se não disser, no máximo 10 min); modelo inexistente, 30 min; chave recusada, 60 s. Os dois últimos só saem da frente quando há reserva. Ele vai para o fim da fila, não some: se todos os outros falharem, ainda é tentado. A tela de configuração mostra quem está fora da frente e a frase do provedor.
+- Todos falhando, a mensagem é a do **modelo principal**, com a frase do provedor (por exemplo, qual modelo saiu do ar).
+- Prazos: 90 s por modelo e 3 min para a leitura inteira. Cancelar a leitura não passa para a reserva.
+- A resposta é pedida como JSON no texto ("Responda APENAS com o objeto JSON..."), o que funciona igual nos quatro provedores. O app acha o objeto (mesmo dentro de uma cerca de código), confere cada tabela e só então preenche o formulário. JSON malformado é pedido de novo (até 3 vezes); erro de provedor não, porque a fila inteira já foi tentada.
+
+#### Privacidade e detalhes técnicos
+
+- As chaves ficam só neste aparelho, numa entrada separada do `localStorage` (`bingo-manager:ia`): não entram no backup, não são sincronizadas entre abas junto com os dados e só são enviadas ao provedor de cada modelo, junto com a foto, na hora da leitura. Como o app não tem servidor, as chamadas saem direto do navegador. Na memória, a identidade de cada modelo na fila usa só um resumo (SHA-256) da chave.
+- A configuração da primeira versão (só Claude, `{apiKey, model}`) vira uma fila com um modelo, sem perder a chave.
+- Arquivos: `src/lib/ai/models.ts` (provedores, catálogo, fila e herança de chave, armazenamento), `src/lib/ai/providers.ts` (adaptadores, prazos, classificação de erros, quarentena e fila), `src/lib/ai/modelList.ts` (lista de modelos ao vivo) e `src/lib/ai/scan.ts` (foto e leitura da cartela).
+- Claude pelo SDK oficial `@anthropic-ai/sdk`, com esforço `medium` nos modelos do catálogo e o fallback do servidor da Anthropic (`fallbacks: "default"`) ligado. OpenAI (Chat Completions, com `max_completion_tokens`), Gemini (`generateContent`, com a chave no cabeçalho e não na URL) e Ollama (`/api/chat`) por `fetch` direto nas APIs, para não acrescentar mais dois SDKs ao arquivo único do app.
+- A foto é aberta já na orientação certa, reduzida para no máximo 2576 px no maior lado e enviada em JPEG.
 
 ### Tema escuro
 
@@ -161,11 +183,11 @@ O build gera um único `dist/index.html` com todo o JavaScript e CSS embutidos, 
 
 ### Testes
 
-- Unitários (`src/**/*.test.ts`): pacotes MQTT, código e assinatura da transmissão (mensagens alteradas ou de outra chave recusadas) e as regras de aplicação na partida, leitura da resposta da IA e configuração salva à parte, regras dos modos, validação das grades, estado e migração dos dados antigos, sorteador (sem repetir, sincronizar com a partida, mudar o globo), geração das cartelas (faixas das colunas, lote sem tabelas repetidas, CSV), layout de impressão (tudo dentro da folha em todas as combinações) e o PDF gerado (textos com acento, páginas, compressão).
+- Unitários (`src/**/*.test.ts`): pacotes MQTT, código e assinatura da transmissão (mensagens alteradas ou de outra chave recusadas) e as regras de aplicação na partida, fila de modelos da IA (herança de chave, quarentena por tipo de erro, reserva assumindo, erro do principal quando todos falham, cancelar), classificação e frase dos erros dos provedores, leitura do JSON e repetições, migração e armazenamento da configuração da IA, leitura da resposta da cartela, regras dos modos, validação das grades, estado e migração dos dados antigos, sorteador (sem repetir, sincronizar com a partida, mudar o globo), geração das cartelas (faixas das colunas, lote sem tabelas repetidas, CSV), layout de impressão (tudo dentro da folha em todas as combinações) e o PDF gerado (textos com acento, páginas, compressão).
 - `tests/e2e/simulacao.spec.ts`: simula **20 partidas para cada uma de 3 cartelas** usando o campo de número como um usuário. As cartelas são gravadas no armazenamento antes de abrir o app (ele começa vazio). Depois de cada número a mensagem do app e o aviso de BINGO são conferidos, e a cada 10 números (e depois de cada ação especial) a tela inteira é comparada com um oráculo independente (`tests/e2e/oracle.ts`, que reescreve as regras dos 23 modos de outra forma). Passa por: seleção pelo atalho por jogo, por cartela e jogo a jogo; os 23 modos; Enter, botão Marcar e painel 1 a 75; formatos `7`, `07`, `B7`, `b-07`; números inválidos e repetidos; desfazer; remover número (cancelando e confirmando); recarregar a página; sair e continuar; editar modos no meio da partida; renomear cartela; ordenar por proximidade; visão compacta com colunas automáticas e fixas; card de números sorteados recolhido; som e tela ligada; finalizar pela partida e pelo início; histórico; reabrir partida.
 - `tests/e2e/fluxos.spec.ts`: cadastro, validação, renomeação, edição e exclusão de cartelas; cartela de um jogo e cartela com números diferentes por jogo, com Salvar e jogar e inclusão na partida em andamento; backup; migração dos dados da primeira versão; botão voltar e endereços inválidos; sincronização entre abas; PWA (manifesto, ícones, service worker, uso offline e convite de instalação, inclusive a dica do iPhone); continuar a partida depois de fechar padrões; visão compacta e escolha de colunas; card de números sorteados recolhido em uma linha; tema escuro (automático, claro e escuro, sem piscar e com contraste conferido); layout em 360px sem rolagem lateral; interface sem emojis, setas ou travessões, inclusive no sorteador e no gerador.
 - `tests/e2e/transmissao.spec.ts`: sorteador e participante em navegadores separados, conversando por um servidor MQTT simulado no próprio teste (escrito à parte do cliente do app, a partir da especificação). Confere o pacote de conexão, código, QR code e link, recepção ao entrar no meio, bolas novas, desfazer, número digitado à mão, recarregar a página, novo sorteio, partida nova esperando o sorteio novo e "Usar o sorteio atual", fim da transmissão, parar de receber, link do QR code levando à nova partida, um servidor fora do ar, mensagens falsas (alteradas, de outra chave ou inválidas) ignoradas, o código no canto do telão sem cobrir a bola, contraste no tema escuro e layout em 360px.
-- `tests/e2e/ia.spec.ts`: cadastro por foto com a API da Anthropic simulada (nenhum teste usa a rede nem uma chave de verdade). Confere o pedido (chave, modelo escolhido, saída em JSON, fallback, foto em JPEG reduzida para 2576 px), o preenchimento do formulário com casas duvidosas marcadas, a correção e o salvamento, a configuração pela primeira leitura e pela tela inicial (modelo da lista e digitado à mão, chave mascarada, remover chave), a chave fora dos dados do app e do backup, o Esc fechando só a janela de cima, as mensagens de erro (chave recusada, modelo inexistente, sem conexão, recusa, foto sem cartela), cancelar a leitura e o contraste no tema escuro.
+- `tests/e2e/ia.spec.ts`: cadastro por foto com os quatro provedores simulados (nenhum teste usa a rede nem uma chave de verdade). Confere a tela da fila (provedores, lista de modelos consultada no provedor e catálogo sem chave, filtros da OpenAI e do Gemini, chave herdada e "Usar outra chave", Ollama com endereço, nome customizado, remover reserva, Testar modelos), o que cada provedor recebe (chave no cabeçalho certo, modelo, imagem em JPEG reduzida para 2576 px, JSON pedido no texto), a reserva assumindo quando o principal bate no limite ou tem a chave recusada, o principal fora da frente na leitura seguinte e na tela, JSON malformado pedido de novo, todos falhando com a mensagem do principal, sem conexão, cancelar sem passar para a reserva, o preenchimento do formulário com casas duvidosas marcadas, a migração da configuração da primeira versão, as chaves fora dos dados do app e do backup, o Esc fechando só a janela de cima e o contraste no tema escuro.
 - `tests/e2e/ferramentas.spec.ts`: começo sem cartelas; sorteador (bolas sem repetir pelo botão, Espaço e Enter, desfazer, reiniciar, sorteio salvo ao recarregar, globo de 90 e de outra quantidade até acabar, modo automático com pausa usando relógio controlado, modo telão em tela cheia, atalhos de teclado e marcação na partida em andamento); gerador (PDF aberto e conferido: páginas, título e textos; CSV com os mesmos números do PDF; números que não mudam ao trocar o título; Outros números; adicionar às minhas cartelas sem duplicar; jogos avulsos com colunas em ordem e sem espaço livre; aviso de números pequenos); sorteador, telão e gerador em 360px no tema escuro e no claro, sem rolagem lateral e com contraste conferido.
 
 ### Estrutura
@@ -177,7 +199,10 @@ src/
   lib/bingo.ts            lógica de marcação, progresso e conquistas
   lib/cards.ts            cartelas e jogos da partida
   lib/drawer.ts           sorteio sem repetir, letras e voz do sorteador
-  lib/ai.ts               leitura de cartelas por foto (API da Anthropic) e configuração da IA
+  lib/ai/models.ts        provedores de IA, catálogo, fila de modelos e configuração salva no aparelho
+  lib/ai/providers.ts     adaptadores (Claude, OpenAI, Gemini, Ollama), prazos, quarentena e fila com reserva
+  lib/ai/modelList.ts     lista de modelos consultada no provedor
+  lib/ai/scan.ts          foto e leitura da cartela pela IA
   lib/mqtt.ts             cliente MQTT mínimo sobre WebSocket
   lib/broadcast.ts        transmissão do sorteio: código, assinatura e aplicação na partida
   lib/useBroadcast.ts     conexões de quem transmite e de quem recebe

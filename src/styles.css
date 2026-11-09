@@ -3172,50 +3172,144 @@ button.ball-chip:disabled {
   margin-bottom: 6px;
 }
 
-.ai-models {
-  display: grid;
-  gap: 6px;
+.ai-section-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  color: var(--heading-ink);
+}
+
+.ai-chain-head {
   margin-top: 6px;
 }
 
-.ai-model {
+.ai-chain-head .hint {
+  margin: 2px 0 8px;
+  font-size: 0.82rem;
+}
+
+.ai-chain {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.ai-chain-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.ai-chain-item-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  cursor: pointer;
+  gap: 8px;
 }
 
-.ai-model.is-on {
-  border-color: var(--blue-600);
-  background: var(--blue-50);
-}
-
-.field .ai-model input[type='radio'] {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  padding: 0;
-  margin: 0;
-  accent-color: var(--blue-600);
-}
-
-.ai-model span {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.ai-model strong {
+.ai-chain-item-head strong {
   color: var(--ink);
 }
 
-.ai-model small {
+.ai-chain-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 560px) {
+  .ai-chain-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.ai-chain-item .field {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  /* sem isso, o campo mais baixo da linha estica e empurra o select para baixo */
+  align-content: start;
+}
+
+.ai-chain-item .field > span,
+.ai-chain-item .field > label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* lixeira e "Usar outra chave" alinhados à direita, como na lista de modelos */
+.ai-chain-item-head .icon-btn,
+.ai-inherited .btn {
+  margin-left: auto;
+}
+
+.field select {
+  height: 46px;
+  width: 100%;
+  padding: 0 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.field select:focus {
+  outline: none;
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 3px var(--blue-100);
+}
+
+.ai-inherited {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--cell-soft);
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
+}
+
+.ai-health,
+.ai-test {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  background: var(--cell-soft);
+  color: var(--ink);
+}
+
+.ai-health {
+  background: var(--orange-100);
+}
+
+.ai-test.is-ok {
+  background: var(--green-100);
+  color: var(--green-ink);
+  font-weight: 700;
+}
+
+.ai-test.is-error {
+  background: var(--error-bg);
+  color: var(--red-600);
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .ai-custom-model {

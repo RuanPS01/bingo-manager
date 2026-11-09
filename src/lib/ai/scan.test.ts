@@ -1,13 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  AI_STORAGE_KEY,
-  DEFAULT_AI_MODEL,
-  clearAiConfig,
-  loadAiConfig,
-  maskKey,
-  normalizeScan,
-  saveAiConfig,
-} from './ai';
+import { describe, expect, it } from 'vitest';
+import { normalizeScan } from './scan';
 
 // prettier-ignore
 const linhas = [
@@ -55,33 +47,5 @@ describe('normalizeScan', () => {
     expect(r.games.map((g) => g.name)).toEqual(['B']);
     expect(r.warnings[0]).toMatch(/tabela 1/);
     expect(normalizeScan(null)).toEqual({ number: '', name: '', games: [], warnings: [] });
-  });
-});
-
-describe('configuração da IA', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('fica numa chave própria do localStorage, separada dos dados do app', () => {
-    const dados = new Map<string, string>();
-    vi.stubGlobal('localStorage', {
-      getItem: (k: string) => dados.get(k) ?? null,
-      setItem: (k: string, v: string) => void dados.set(k, v),
-      removeItem: (k: string) => void dados.delete(k),
-    });
-    expect(loadAiConfig()).toBeNull();
-    saveAiConfig({ apiKey: '  sk-ant-abc123456789xyz ', model: 'claude-sonnet-5-5' });
-    expect([...dados.keys()]).toEqual([AI_STORAGE_KEY]);
-    expect(loadAiConfig()).toEqual({ apiKey: 'sk-ant-abc123456789xyz', model: 'claude-sonnet-5-5' });
-    dados.set(AI_STORAGE_KEY, JSON.stringify({ apiKey: 'sk-ant-x', model: '' }));
-    expect(loadAiConfig()?.model).toBe(DEFAULT_AI_MODEL);
-    dados.set(AI_STORAGE_KEY, '{quebrado');
-    expect(loadAiConfig()).toBeNull();
-    clearAiConfig();
-    expect(dados.size).toBe(0);
-  });
-
-  it('mostra só o começo e o fim da chave', () => {
-    expect(maskKey('sk-ant-api03-abcdefghijklmnop')).toBe('sk-ant-...mnop');
-    expect(maskKey('curta')).toBe('****');
   });
 });
