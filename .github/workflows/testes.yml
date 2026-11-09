@@ -44,7 +44,7 @@ jobs:
       - name: Instalar navegador dos testes
         run: npx playwright install --with-deps chromium
 
-      - name: Testes de ponta a ponta (fluxos, sorteador, gerador e leitura por foto)
+      - name: Testes de ponta a ponta (fluxos, sorteador, gerador, leitura por foto e transmissão)
         run: npm run test:e2e:fluxos
         env:
           CI: 'true'

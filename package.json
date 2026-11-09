@@ -11,7 +11,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/e2e",
     "test:e2e": "playwright test",
-    "test:e2e:fluxos": "playwright test tests/e2e/fluxos.spec.ts tests/e2e/ferramentas.spec.ts tests/e2e/ia.spec.ts",
+    "test:e2e:fluxos": "playwright test tests/e2e/fluxos.spec.ts tests/e2e/ferramentas.spec.ts tests/e2e/ia.spec.ts tests/e2e/transmissao.spec.ts",
     "test:e2e:simulacao": "playwright test tests/e2e/simulacao.spec.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -19,6 +19,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
     "jspdf": "^4.2.1",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

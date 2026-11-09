@@ -150,13 +150,13 @@ export function reducer(state: AppState, action: Action): AppState {
     }
 
     case 'drawer/reset':
-      return { ...state, drawer: { ...state.drawer, draws: [] } };
+      return { ...state, drawer: { ...state.drawer, draws: [], round: state.drawer.round + 1 } };
 
     case 'drawer/config': {
       const config = { ...state.drawer.config, ...action.patch };
       // Mudar a quantidade de bolas no meio do sorteio deixaria números fora do globo.
       const draws = state.drawer.draws.filter((n) => n <= config.maxBall);
-      return { ...state, drawer: { config, draws } };
+      return { ...state, drawer: { ...state.drawer, config, draws } };
     }
 
     case 'generator/config':

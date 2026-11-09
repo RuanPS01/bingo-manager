@@ -3,8 +3,10 @@ import { ConfirmProvider } from './components/Dialog';
 import { IconHome } from './components/Icons';
 import { MatchSetup, type SetupResult } from './components/MatchSetup';
 import { DEFAULT_MODE_IDS } from './data/modes';
+import { formatCode, isValidCode, loadReceiver, normalizeCode, saveReceiver } from './lib/broadcast';
 import { toMatchGame } from './lib/cards';
 import { STORAGE_KEY, loadState, sanitizeState, saveState } from './lib/storage';
+import { useReceiver, useTransmitter } from './lib/useBroadcast';
 import { useTheme } from './lib/useTheme';
 import { reducer } from './state';
 import type { Card, Match } from './types';
@@ -89,6 +91,27 @@ export default function App() {
   }, []);
 
   const active = state.activeMatch;
+
+  // Transmissão do sorteio: quem sorteia publica, quem joga recebe na partida aberta.
+  const transmitter = useTransmitter(state.drawer, state.drawer.config.broadcast);
+  const [receiverCode, setReceiverCodeState] = useState<string | null>(() => loadReceiver()?.code ?? null);
+  const receiver = useReceiver(receiverCode);
+  const setReceiverCode = useCallback((code: string | null) => {
+    if (!code) saveReceiver(null);
+    else if (loadReceiver()?.code !== code) saveReceiver({ code, matchId: null, round: null, applied: [] });
+    setReceiverCodeState(code);
+  }, []);
+
+  // Link do sorteador (#/receber/<código>): já liga a recepção e leva para a partida.
+  const receiveParam = route.match(/^\/receber\/([^/]+)$/)?.[1] ?? null;
+  const hasActive = Boolean(active);
+  useEffect(() => {
+    if (receiveParam === null) return;
+    const code = normalizeCode(decodeURIComponent(receiveParam));
+    if (isValidCode(code)) setReceiverCode(code);
+    navigate(isValidCode(code) ? (hasActive ? '/partida' : '/nova-partida') : '/', true);
+  }, [receiveParam, hasActive, navigate, setReceiverCode]);
+
   const historyMatch = useMemo(() => {
     const m = route.match(/^\/historico\/(.+)$/);
     return m ? (state.history.find((h) => h.id === decodeURIComponent(m[1])) ?? null) : null;
@@ -126,6 +149,11 @@ export default function App() {
             : undefined
         }
         submitLabel="Iniciar jogo"
+        notice={
+          receiverCode
+            ? `Os números do sorteador ${formatCode(receiverCode)} entram na partida assim que ela começar.`
+            : undefined
+        }
         onSaveCard={saveCard}
         onSubmit={(r) => {
           dispatch({ type: 'match/start', ...r });
@@ -155,6 +183,7 @@ export default function App() {
         key={active.id}
         match={active}
         readOnly={false}
+        remote={{ code: receiverCode, ...receiver, setCode: setReceiverCode }}
         settings={state.settings}
         canReopen={false}
         cards={state.cards}
@@ -178,7 +207,7 @@ export default function App() {
       />
     );
   } else if (route === '/sorteador') {
-    content = <DrawerView state={state} dispatch={dispatch} navigate={navigate} />;
+    content = <DrawerView state={state} dispatch={dispatch} navigate={navigate} transmitter={transmitter} />;
   } else if (route === '/gerador') {
     content = <GeneratorView state={state} dispatch={dispatch} navigate={navigate} />;
   } else {
@@ -204,11 +233,12 @@ interface SetupPageProps {
   cards: Card[];
   initial?: SetupResult;
   submitLabel: string;
+  notice?: string;
   onSubmit: (r: SetupResult) => void;
   onSaveCard: (card: Card) => void;
 }
 
-function SetupPage({ title, onBack, backLabel, ...rest }: SetupPageProps) {
+function SetupPage({ title, onBack, backLabel, notice, ...rest }: SetupPageProps) {
   return (
     <div className="page setup-page">
       <header className="topbar">
@@ -221,6 +251,11 @@ function SetupPage({ title, onBack, backLabel, ...rest }: SetupPageProps) {
         </div>
       </header>
       <main className="container">
+        {notice && (
+          <p className="notice-inline setup-notice" role="status">
+            {notice}
+          </p>
+        )}
         <MatchSetup {...rest} />
       </main>
     </div>

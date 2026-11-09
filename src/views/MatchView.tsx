@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent } from 'react';
 import { BingoGrid } from '../components/BingoGrid';
-import { useConfirm } from '../components/Dialog';
+import { Modal, useConfirm } from '../components/Dialog';
 import { CardName, cardLabel } from '../components/CardName';
 import {
+  IconBroadcast,
   IconClose,
   IconEdit,
   IconEraser,
@@ -33,15 +34,32 @@ import {
   type Achievement,
   type GameResult,
 } from '../lib/bingo';
+import {
+  formatCode,
+  isValidCode,
+  loadReceiver,
+  normalizeCode,
+  planRemote,
+  saveReceiver,
+  type RemoteStatus,
+} from '../lib/broadcast';
 import { playMark, playWin, unlockAudio, vibrate } from '../lib/feedback';
+import type { Receiver } from '../lib/useBroadcast';
 import type { Theme } from '../lib/useTheme';
 import { useWakeLock } from '../lib/useWakeLock';
 import type { Action } from '../state';
 import type { Card, Match, Settings } from '../types';
 import { formatDateTime } from './HomeView';
 
+export interface RemoteProps extends Receiver {
+  code: string | null;
+  setCode: (code: string | null) => void;
+}
+
 interface MatchViewProps {
   match: Match;
+  /** Recepção dos números transmitidos por um sorteador (só na partida em andamento). */
+  remote?: RemoteProps;
   cards: Card[];
   theme: Theme;
   readOnly: boolean;
@@ -62,7 +80,17 @@ const BANNER_DRAWS = 3;
 const MIN_COMPACT_CARD = 66;
 const MAX_COMPACT_COLUMNS = 8;
 
-export function MatchView({ match, cards, theme, readOnly, settings, canReopen, dispatch, navigate }: MatchViewProps) {
+export function MatchView({
+  match,
+  remote,
+  cards,
+  theme,
+  readOnly,
+  settings,
+  canReopen,
+  dispatch,
+  navigate,
+}: MatchViewProps) {
   const confirm = useConfirm();
   const evaluation = useMemo(() => evaluateMatch(match), [match]);
   const [input, setInput] = useState('');
@@ -181,6 +209,66 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
       if (settings.vibration) vibrate(60);
     } else {
       setFeedback({ kind: 'miss', text: `${formatBall(ball)} registrado. Não está nas cartelas desta partida.` });
+    }
+  };
+
+  // Números que chegam do sorteador: entram como se tivessem sido digitados.
+  const [remoteStatus, setRemoteStatus] = useState<RemoteStatus | null>(null);
+  const [receiving, setReceiving] = useState(false);
+  const remoteCode = remote?.code ?? null;
+  const remoteState = remote?.state ?? null;
+  useEffect(() => {
+    if (readOnly || !remoteCode || !remoteState || remoteState.code !== remoteCode) return;
+    const binding = loadReceiver() ?? { code: remoteCode, matchId: null, round: null, applied: [] };
+    if (binding.code !== remoteCode) return;
+    const plan = planRemote(binding, match, remoteState);
+    saveReceiver(plan.binding);
+    setRemoteStatus(plan.status);
+    applyRemote(plan.add, plan.remove);
+    // applyRemote usa a partida desta renderização, que já está nas dependências
+  }, [readOnly, remoteCode, remoteState, match.id, match.draws]);
+
+  const applyRemote = (add: number[], remove: number[]) => {
+    if (add.length === 0 && remove.length === 0) return;
+    remove.forEach((ball) => dispatch({ type: 'match/remove-ball', ball }));
+    if (add.length === 1 && remove.length === 0) {
+      drawBall(add[0]);
+      return;
+    }
+    const draws = [...match.draws.filter((b) => !remove.includes(b)), ...add];
+    const known = new Set(evaluation.achievements.map((a) => `${a.gameKey}|${a.modeId}`));
+    const fresh = evaluateMatch({ ...match, draws }).achievements.filter((a) => !known.has(`${a.gameKey}|${a.modeId}`));
+    add.forEach((ball) => dispatch({ type: 'match/draw', ball }));
+    if (fresh.length > 0) {
+      setBanner({ at: draws.length, items: fresh });
+      setFeedback({ kind: 'win', text: `Recebidos ${add.length} números do sorteador: ${fresh.length} conquista(s)!` });
+      if (settings.sound) playWin();
+      if (settings.vibration) vibrate([200, 100, 200, 100, 400]);
+    } else if (add.length > 0) {
+      setBanner(null);
+      setFeedback({ kind: 'info', text: `Recebidos ${add.length} números do sorteador.` });
+    } else {
+      setBanner(null);
+      setFeedback({
+        kind: 'info',
+        text:
+          remove.length === 1
+            ? `${formatBall(remove[0])} foi desfeito pelo sorteador.`
+            : `${remove.length} números desfeitos pelo sorteador.`,
+      });
+    }
+  };
+
+  /** A partida passa a receber o sorteio atual, mesmo sendo o mesmo da partida anterior. */
+  const receiveCurrentRound = () => {
+    if (!remoteCode) return;
+    saveReceiver({ code: remoteCode, matchId: null, round: null, applied: [] });
+    setRemoteStatus(null);
+    if (remoteState) {
+      const plan = planRemote(loadReceiver()!, match, remoteState);
+      saveReceiver(plan.binding);
+      setRemoteStatus(plan.status);
+      applyRemote(plan.add, plan.remove);
     }
   };
 
@@ -383,6 +471,16 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
             </form>
           )}
 
+          {!readOnly && remote && remoteCode && (
+            <RemoteBar
+              remote={remote}
+              code={remoteCode}
+              status={remoteStatus}
+              onUseCurrent={receiveCurrentRound}
+              onManage={() => setReceiving(true)}
+            />
+          )}
+
           <div className={`feedback feedback-${feedback?.kind ?? 'idle'}`} role="status" aria-live="polite">
             {feedback?.text ??
               (match.draws.length
@@ -534,25 +632,38 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
               )
             ) : (
               <>
-                <div className="segmented draws-view" role="group" aria-label="Forma de exibição">
-                  <button
-                    type="button"
-                    className={drawView === 'order' ? 'is-on' : ''}
-                    aria-pressed={drawView === 'order'}
-                    onClick={() => setDrawView('order')}
-                  >
-                    <IconList size={16} />
-                    Ordem
-                  </button>
-                  <button
-                    type="button"
-                    className={drawView === 'board' ? 'is-on' : ''}
-                    aria-pressed={drawView === 'board'}
-                    onClick={() => setDrawView('board')}
-                  >
-                    <IconGrid size={16} />
-                    Painel
-                  </button>
+                <div className="draws-toolbar">
+                  <div className="segmented draws-view" role="group" aria-label="Forma de exibição">
+                    <button
+                      type="button"
+                      className={drawView === 'order' ? 'is-on' : ''}
+                      aria-pressed={drawView === 'order'}
+                      onClick={() => setDrawView('order')}
+                    >
+                      <IconList size={16} />
+                      Ordem
+                    </button>
+                    <button
+                      type="button"
+                      className={drawView === 'board' ? 'is-on' : ''}
+                      aria-pressed={drawView === 'board'}
+                      onClick={() => setDrawView('board')}
+                    >
+                      <IconGrid size={16} />
+                      Painel
+                    </button>
+                  </div>
+                  {!readOnly && remote && (
+                    <button
+                      type="button"
+                      className={`btn btn-ghost btn-sm ${remoteCode ? 'is-on' : ''}`}
+                      onClick={() => setReceiving(true)}
+                      aria-label="Receber números do sorteador"
+                    >
+                      <IconBroadcast size={16} />
+                      {remoteCode ? 'Sorteador ligado' : 'Receber do sorteador'}
+                    </button>
+                  )}
                 </div>
 
                 {drawView === 'order' ? (
@@ -742,6 +853,23 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
         </section>
       </main>
 
+      {receiving && remote && (
+        <ReceiveDialog
+          code={remoteCode}
+          onClose={() => setReceiving(false)}
+          onConnect={(code) => {
+            remote.setCode(code);
+            setReceiving(false);
+            setRemoteStatus(null);
+          }}
+          onStop={() => {
+            remote.setCode(null);
+            setReceiving(false);
+            setRemoteStatus(null);
+          }}
+        />
+      )}
+
       {adding && (
         <CardEditor
           card={null}
@@ -890,5 +1018,141 @@ function GameCard({ result, lastBall, draws, compact = false }: GameCardProps) {
         })}
       </ul>
     </article>
+  );
+}
+
+const REMOTE_TEXT: Record<RemoteStatus, string> = {
+  applied: 'Os números chegam sozinhos nesta partida.',
+  'too-many-balls': 'O sorteador está com mais de 75 bolas: só os números até 75 entram na partida.',
+  ended: 'O sorteador encerrou a transmissão.',
+  'new-round':
+    'O sorteador começou um novo sorteio. Finalize esta partida e inicie outra para receber os números do novo sorteio.',
+  waiting: 'Esta partida vai receber os números quando o sorteador começar um novo sorteio.',
+};
+
+/** Faixa com o estado da recepção: conexão, código do sorteador e o que está acontecendo. */
+function RemoteBar({
+  remote,
+  code,
+  status,
+  onUseCurrent,
+  onManage,
+}: {
+  remote: RemoteProps;
+  code: string;
+  status: RemoteStatus | null;
+  onUseCurrent: () => void;
+  onManage: () => void;
+}) {
+  const online = remote.connected > 0;
+  const text = !online
+    ? typeof navigator !== 'undefined' && navigator.onLine === false
+      ? 'Sem internet. Os números voltam a chegar quando a conexão voltar.'
+      : 'Conectando ao sorteador...'
+    : !remote.state
+      ? 'Aguardando o sorteador. Se demorar, confira o código.'
+      : status
+        ? REMOTE_TEXT[status]
+        : 'Recebendo...';
+  return (
+    <div className={`remote-bar ${online ? 'is-on' : 'is-off'}`} data-status={status ?? ''} role="status">
+      <IconBroadcast size={18} />
+      <span className="remote-bar-text">
+        <strong>Sorteador {formatCode(code)}</strong> {text}
+      </span>
+      <span className="remote-bar-actions">
+        {status === 'waiting' && (
+          <button type="button" className="btn btn-on-dark btn-sm" onClick={onUseCurrent}>
+            Usar o sorteio atual
+          </button>
+        )}
+        <button type="button" className="btn btn-on-dark btn-sm" onClick={onManage}>
+          Alterar
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** Janela para digitar o código do sorteador (ou parar de receber). */
+function ReceiveDialog({
+  code,
+  onClose,
+  onConnect,
+  onStop,
+}: {
+  code: string | null;
+  onClose: () => void;
+  onConnect: (code: string) => void;
+  onStop: () => void;
+}) {
+  const [value, setValue] = useState(code ? formatCode(code) : '');
+  const [error, setError] = useState<string | null>(null);
+  const connect = () => {
+    const normalized = normalizeCode(value);
+    if (!isValidCode(normalized)) {
+      setError('O código tem 8 letras e números, como 7KQ2-M9XA.');
+      return;
+    }
+    onConnect(normalized);
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Receber números do sorteador"
+      size="sm"
+      footer={
+        <>
+          {code && (
+            <button type="button" className="btn btn-ghost btn-danger-text push-left" onClick={onStop}>
+              Parar de receber
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="button" className="btn btn-primary" onClick={connect}>
+            Receber
+          </button>
+        </>
+      }
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          connect();
+        }}
+      >
+        <p className="hint">
+          Se quem está sorteando usa o Sorteador do Bingo Manager com a transmissão ligada, os números aparecem sozinhos
+          nesta partida. Digite o código que aparece na tela do sorteador (ou leia o QR code com a câmera). Precisa de
+          internet.
+        </p>
+        <label className="field">
+          <span>Código do sorteador</span>
+          <input
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value.toUpperCase().slice(0, 12));
+              setError(null);
+            }}
+            placeholder="Ex.: 7KQ2-M9XA"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="code-input"
+            data-autofocus
+          />
+        </label>
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+        <p className="hint">Os números digitados à mão continuam valendo junto com os que chegarem.</p>
+        <button type="submit" hidden />
+      </form>
+    </Modal>
   );
 }

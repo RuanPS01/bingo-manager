@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch } from 'react';
 import { useConfirm } from '../components/Dialog';
 import { NumberInput } from '../components/NumberInput';
+import { QrCode } from '../components/QrCode';
 import {
+  IconBroadcast,
   IconClock,
   IconClose,
   IconEraser,
@@ -12,6 +14,7 @@ import {
   IconSettings,
 } from '../components/Icons';
 import { LETTERS, pad2 } from '../lib/bingo';
+import { BROKERS, formatCode, receiveLink } from '../lib/broadcast';
 import {
   ANIMATION_SPEEDS,
   canSpeak,
@@ -23,6 +26,7 @@ import {
   usesLetters,
 } from '../lib/drawer';
 import { playReveal, playTick, unlockAudio } from '../lib/feedback';
+import type { Transmitter } from '../lib/useBroadcast';
 import { useWakeLock } from '../lib/useWakeLock';
 import { syncsWithMatch, type Action } from '../state';
 import type { AppState, DrawerConfig } from '../types';
@@ -31,6 +35,7 @@ interface DrawerViewProps {
   state: AppState;
   dispatch: Dispatch<Action>;
   navigate: (path: string) => void;
+  transmitter: Transmitter;
 }
 
 type Phase = 'idle' | 'rolling';
@@ -40,7 +45,7 @@ function prefersReducedMotion(): boolean {
 }
 
 /** Tela do sorteador: globo, animação, painel de bolas e modo telão. */
-export function DrawerView({ state, dispatch, navigate }: DrawerViewProps) {
+export function DrawerView({ state, dispatch, navigate, transmitter }: DrawerViewProps) {
   const { config, draws } = state.drawer;
   const confirm = useConfirm();
   const [phase, setPhase] = useState<Phase>('idle');
@@ -62,6 +67,12 @@ export function DrawerView({ state, dispatch, navigate }: DrawerViewProps) {
   const letters = usesLetters(config);
 
   const setConfig = (patch: Partial<DrawerConfig>) => dispatch({ type: 'drawer/config', patch });
+
+  const setBroadcast = async (on: boolean) => {
+    // avisa quem está recebendo antes de desligar, para a tela deles mostrar que acabou
+    if (!on) await transmitter.stop();
+    setConfig({ broadcast: on });
+  };
 
   const clearTimers = () => {
     timers.current.forEach((t) => window.clearTimeout(t));
@@ -240,6 +251,7 @@ export function DrawerView({ state, dispatch, navigate }: DrawerViewProps) {
             hasDraws={draws.length > 0}
             hasMatch={Boolean(state.activeMatch)}
             onChange={setConfig}
+            onBroadcast={(on) => void setBroadcast(on)}
           />
         )}
 
@@ -331,6 +343,10 @@ export function DrawerView({ state, dispatch, navigate }: DrawerViewProps) {
           )}
         </section>
 
+        {config.broadcast && (
+          <BroadcastPanel transmitter={transmitter} projecting={projecting} onStop={() => void setBroadcast(false)} />
+        )}
+
         {recent.length > 0 && (
           <section className={projecting ? 'drawer-recent' : 'panel drawer-recent'} aria-label="Últimas bolas">
             {!projecting && <h2>Últimas bolas</h2>}
@@ -394,9 +410,10 @@ interface DrawerSettingsProps {
   hasDraws: boolean;
   hasMatch: boolean;
   onChange: (patch: Partial<DrawerConfig>) => void;
+  onBroadcast: (on: boolean) => void;
 }
 
-function DrawerSettings({ config, hasDraws, hasMatch, onChange }: DrawerSettingsProps) {
+function DrawerSettings({ config, hasDraws, hasMatch, onChange, onBroadcast }: DrawerSettingsProps) {
   const preset = config.maxBall === 75 ? 75 : config.maxBall === 90 ? 90 : 0;
   return (
     <section className="panel drawer-settings" aria-label="Configurações do sorteio">
@@ -538,6 +555,113 @@ function DrawerSettings({ config, hasDraws, hasMatch, onChange }: DrawerSettings
               : ' (nenhuma partida em andamento agora)'}
         </span>
       </label>
+
+      <label className="check-line">
+        <input type="checkbox" checked={config.broadcast} onChange={(e) => onBroadcast(e.target.checked)} />
+        <span>Transmitir os números para os celulares dos participantes (precisa de internet)</span>
+      </label>
+    </section>
+  );
+}
+
+function connectionText({ connected, total }: { connected: number; total: number }): string {
+  if (connected === total) return 'Transmitindo';
+  if (connected > 0) return `Transmitindo por ${connected} de ${total} servidores`;
+  return typeof navigator !== 'undefined' && navigator.onLine === false ? 'Sem internet' : 'Conectando...';
+}
+
+/** Código, QR code e link para os participantes receberem os números no celular. */
+function BroadcastPanel({
+  transmitter,
+  projecting,
+  onStop,
+}: {
+  transmitter: Transmitter;
+  projecting: boolean;
+  onStop: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const { code } = transmitter;
+  const link = code ? receiveLink(code) : '';
+  const state = transmitter.connected > 0 ? 'on' : 'off';
+
+  if (projecting) {
+    if (!code) return null;
+    return (
+      <section className="drawer-broadcast" aria-label="Receber os números no celular">
+        <QrCode text={link} label={`QR code para receber os números, código ${formatCode(code)}`} />
+        <div>
+          <span>Acompanhe no celular</span>
+          <strong className="broadcast-code">{formatCode(code)}</strong>
+        </div>
+      </section>
+    );
+  }
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <section className="panel broadcast-panel" aria-label="Transmissão para os participantes">
+      <header className="panel-head">
+        <h2>
+          <IconBroadcast size={20} />
+          Transmissão para os participantes
+        </h2>
+        <span className={`connection-badge is-${state}`} role="status" data-connected={transmitter.connected}>
+          {connectionText(transmitter)}
+        </span>
+      </header>
+      {code ? (
+        <div className="broadcast-body">
+          <QrCode text={link} label={`QR code para receber os números, código ${formatCode(code)}`} />
+          <div className="broadcast-info">
+            <span className="muted small">Código do sorteio</span>
+            <strong className="broadcast-code" data-code={code}>
+              {formatCode(code)}
+            </strong>
+            <p className="hint">
+              Quem joga lê o QR code com a câmera do celular, ou abre a partida no Bingo Manager, toca em Receber do
+              sorteador e digita o código. Cada bola sorteada aqui é marcada na hora nas cartelas deles.
+            </p>
+            <div className="button-row">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copy()}>
+                {copied ? 'Link copiado' : 'Copiar link'}
+              </button>
+              {typeof navigator.share === 'function' && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() =>
+                    void navigator
+                      .share({ title: 'Bingo Manager', text: 'Receba os números do sorteio no celular', url: link })
+                      .catch(() => undefined)
+                  }
+                >
+                  Compartilhar
+                </button>
+              )}
+              <button type="button" className="btn btn-ghost btn-danger-text btn-sm" onClick={onStop}>
+                Parar transmissão
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="hint">Preparando o código...</p>
+      )}
+      <p className="hint">
+        Os números passam por servidores públicos gratuitos ({BROKERS.map((b) => b.name).join(' e ')}), sem cadastro. As
+        mensagens saem assinadas por este aparelho: ninguém consegue mandar números falsos com este código. O código é o
+        mesmo nos próximos sorteios.
+      </p>
     </section>
   );
 }

@@ -3,7 +3,7 @@
 Aplicação web (PWA, pensada primeiro para o celular) para jogar bingo de 75 bolas (B I N G O):
 
 - **Acompanhar cartelas:** cadastre as suas cartelas e marque os números sorteados em todas de uma vez, com 23 modos de vitória e aviso de BINGO.
-- **Sorteador:** sorteie as bolas com animação, voz e modo telão (tela cheia) para projetar.
+- **Sorteador:** sorteie as bolas com animação, voz e modo telão (tela cheia) para projetar, e transmita os números para os celulares dos participantes.
 - **Gerador de cartelas:** monte cartelas com vários jogos ou jogos avulsos e baixe em PDF para imprimir, com lista de conferência.
 - **Cadastro por foto com IA:** tire uma foto da cartela e a IA da Anthropic (Claude) preenche o número e os jogos para você conferir.
 
@@ -64,6 +64,22 @@ Tudo roda no navegador e fica salvo no próprio aparelho. Funciona sem internet 
 - Atalhos de teclado: **Espaço** ou **Enter** sorteia, **F** liga e desliga o modo telão.
 - O sorteio fica salvo: recarregar a página ou fechar o navegador não perde as bolas já sorteadas.
 
+### Transmissão do sorteio para os celulares
+
+Opcional, para quem sorteia: os participantes recebem cada bola sorteada direto na partida deles, sem digitar.
+
+- **Quem sorteia:** em Configurações do sorteador, marque **Transmitir os números para os celulares dos participantes**. Aparecem o **código do sorteio** (8 letras e números, como `7KQ2-M9XA`), um **QR code** e os botões **Copiar link**, **Compartilhar** e **Parar transmissão**. No modo telão, o QR code e o código ficam num canto da tela, sem cobrir a bola.
+- **Quem joga:** lê o QR code com a câmera (o link abre a nova partida já com a recepção ligada) ou, na partida, toca em **Receber do sorteador** (no card de números sorteados) e digita o código. Uma faixa no topo da partida mostra o sorteador e o estado da conexão.
+- As bolas chegam como se tivessem sido digitadas: marcação, som, vibração e aviso de BINGO. Quem entra no meio recebe todas as bolas já sorteadas. Números digitados à mão continuam valendo junto com os recebidos.
+- **Desfazer** no sorteador tira a bola da partida de quem recebe (só as que vieram da transmissão). **Reiniciar** no sorteador começa um novo sorteio: a partida aberta não muda e a faixa avisa para finalizar e começar outra, que já recebe o sorteio novo. Uma partida nova aberta antes do sorteador reiniciar espera o próximo sorteio, ou recebe o atual em **Usar o sorteio atual**.
+- O código é o mesmo nos próximos sorteios (fica salvo no aparelho de quem sorteia), e a transmissão volta sozinha se a página for recarregada.
+
+**Como funciona e o que é preciso:** um site não consegue abrir um servidor (o navegador não deixa nenhuma página escutar conexões, nem instalada como app), então não dá para os celulares se conectarem direto no aparelho do sorteador. Em vez disso, o sorteador publica o estado do sorteio em dois servidores MQTT públicos e gratuitos ao mesmo tempo (EMQX e HiveMQ, por WebSocket seguro), que só repassam a mensagem a quem assinou o mesmo código. Por isso **o sorteador e os participantes precisam de internet** enquanto a transmissão estiver ligada; sem nenhuma rede, os números continuam sendo digitados à mão. Se um dos servidores cair, o outro entrega.
+
+**Segurança:** cada mensagem é assinada pelo aparelho do sorteador (ECDSA P-256), e o código é tirado do resumo (SHA-256) da chave pública dele. Quem recebe confere as duas coisas, então ninguém consegue mandar números falsos usando o código de outra pessoa. Os números sorteados não são segredo: qualquer um com o código consegue acompanhar. A chave do sorteador fica só no aparelho (`bingo-manager:transmissao`), fora do backup.
+
+Arquivos: `src/lib/mqtt.ts` (cliente MQTT 3.1.1 mínimo sobre WebSocket), `src/lib/broadcast.ts` (código, assinatura e regras de aplicação na partida) e `src/lib/useBroadcast.ts` (conexões do transmissor e do receptor).
+
 ### Gerador de cartelas em PDF
 
 - **O que gerar:**
@@ -118,7 +134,7 @@ Arquivos do PWA: `public/manifest.webmanifest`, `public/sw.js` (service worker) 
 
 A pipeline fica em `.github/workflows/`:
 
-- `testes.yml`: roda em todo pull request, com dois jobs em paralelo. **Tipos, unitários e fluxos** confere formatação, tipos, testes unitários e os testes de ponta a ponta dos fluxos, do sorteador, do gerador e da leitura por foto. **Simulação de 60 partidas** roda a simulação completa.
+- `testes.yml`: roda em todo pull request, com dois jobs em paralelo. **Tipos, unitários e fluxos** confere formatação, tipos, testes unitários e os testes de ponta a ponta dos fluxos, do sorteador, do gerador, da leitura por foto e da transmissão. **Simulação de 60 partidas** roda a simulação completa.
 - `deploy.yml`: roda a cada merge (push) na `main`. Executa só os testes rápidos (a simulação já passou no pull request) e, se tudo passar, gera o build e publica no GitHub Pages.
 
 Para ativar uma única vez: no GitHub, abra **Settings > Pages** e em **Build and deployment > Source** escolha **GitHub Actions**.
@@ -132,7 +148,7 @@ npm install
 npm run dev          # servidor de desenvolvimento
 npm test             # testes unitários (Vitest)
 npm run test:e2e     # todos os testes de ponta a ponta (Playwright)
-npm run test:e2e:fluxos      # fluxos, ferramentas e leitura por foto (rápido)
+npm run test:e2e:fluxos      # fluxos, ferramentas, leitura por foto e transmissão (rápido)
 npm run test:e2e:simulacao   # só a simulação de 60 partidas
 npm run typecheck    # tipos do app e dos testes
 npm run format       # formata o código (Prettier)
@@ -141,13 +157,14 @@ npm run build        # gera dist/
 
 Para os testes de ponta a ponta na sua máquina, instale o navegador uma vez com `npx playwright install chromium`. Eles rodam sobre o build de produção: se já houver um servidor aberto na porta 4173, ele é reaproveitado, então gere o build de novo (`npm run build`) depois de mudar o código.
 
-O build gera um único `dist/index.html` com todo o JavaScript e CSS embutidos, mais o manifesto, o service worker e os ícones. O jsPDF e o SDK da Anthropic entram no mesmo arquivo; as dependências opcionais dele (html2canvas, DOMPurify e canvg, usadas só para converter HTML em PDF) são trocadas por um módulo vazio em `vite.config.ts`.
+O build gera um único `dist/index.html` com todo o JavaScript e CSS embutidos, mais o manifesto, o service worker e os ícones. O jsPDF, o SDK da Anthropic e o gerador de QR code entram no mesmo arquivo; as dependências opcionais dele (html2canvas, DOMPurify e canvg, usadas só para converter HTML em PDF) são trocadas por um módulo vazio em `vite.config.ts`.
 
 ### Testes
 
-- Unitários (`src/**/*.test.ts`): leitura da resposta da IA e configuração salva à parte, regras dos modos, validação das grades, estado e migração dos dados antigos, sorteador (sem repetir, sincronizar com a partida, mudar o globo), geração das cartelas (faixas das colunas, lote sem tabelas repetidas, CSV), layout de impressão (tudo dentro da folha em todas as combinações) e o PDF gerado (textos com acento, páginas, compressão).
+- Unitários (`src/**/*.test.ts`): pacotes MQTT, código e assinatura da transmissão (mensagens alteradas ou de outra chave recusadas) e as regras de aplicação na partida, leitura da resposta da IA e configuração salva à parte, regras dos modos, validação das grades, estado e migração dos dados antigos, sorteador (sem repetir, sincronizar com a partida, mudar o globo), geração das cartelas (faixas das colunas, lote sem tabelas repetidas, CSV), layout de impressão (tudo dentro da folha em todas as combinações) e o PDF gerado (textos com acento, páginas, compressão).
 - `tests/e2e/simulacao.spec.ts`: simula **20 partidas para cada uma de 3 cartelas** usando o campo de número como um usuário. As cartelas são gravadas no armazenamento antes de abrir o app (ele começa vazio). Depois de cada número a mensagem do app e o aviso de BINGO são conferidos, e a cada 10 números (e depois de cada ação especial) a tela inteira é comparada com um oráculo independente (`tests/e2e/oracle.ts`, que reescreve as regras dos 23 modos de outra forma). Passa por: seleção pelo atalho por jogo, por cartela e jogo a jogo; os 23 modos; Enter, botão Marcar e painel 1 a 75; formatos `7`, `07`, `B7`, `b-07`; números inválidos e repetidos; desfazer; remover número (cancelando e confirmando); recarregar a página; sair e continuar; editar modos no meio da partida; renomear cartela; ordenar por proximidade; visão compacta com colunas automáticas e fixas; card de números sorteados recolhido; som e tela ligada; finalizar pela partida e pelo início; histórico; reabrir partida.
 - `tests/e2e/fluxos.spec.ts`: cadastro, validação, renomeação, edição e exclusão de cartelas; cartela de um jogo e cartela com números diferentes por jogo, com Salvar e jogar e inclusão na partida em andamento; backup; migração dos dados da primeira versão; botão voltar e endereços inválidos; sincronização entre abas; PWA (manifesto, ícones, service worker, uso offline e convite de instalação, inclusive a dica do iPhone); continuar a partida depois de fechar padrões; visão compacta e escolha de colunas; card de números sorteados recolhido em uma linha; tema escuro (automático, claro e escuro, sem piscar e com contraste conferido); layout em 360px sem rolagem lateral; interface sem emojis, setas ou travessões, inclusive no sorteador e no gerador.
+- `tests/e2e/transmissao.spec.ts`: sorteador e participante em navegadores separados, conversando por um servidor MQTT simulado no próprio teste (escrito à parte do cliente do app, a partir da especificação). Confere o pacote de conexão, código, QR code e link, recepção ao entrar no meio, bolas novas, desfazer, número digitado à mão, recarregar a página, novo sorteio, partida nova esperando o sorteio novo e "Usar o sorteio atual", fim da transmissão, parar de receber, link do QR code levando à nova partida, um servidor fora do ar, mensagens falsas (alteradas, de outra chave ou inválidas) ignoradas, o código no canto do telão sem cobrir a bola, contraste no tema escuro e layout em 360px.
 - `tests/e2e/ia.spec.ts`: cadastro por foto com a API da Anthropic simulada (nenhum teste usa a rede nem uma chave de verdade). Confere o pedido (chave, modelo escolhido, saída em JSON, fallback, foto em JPEG reduzida para 2576 px), o preenchimento do formulário com casas duvidosas marcadas, a correção e o salvamento, a configuração pela primeira leitura e pela tela inicial (modelo da lista e digitado à mão, chave mascarada, remover chave), a chave fora dos dados do app e do backup, o Esc fechando só a janela de cima, as mensagens de erro (chave recusada, modelo inexistente, sem conexão, recusa, foto sem cartela), cancelar a leitura e o contraste no tema escuro.
 - `tests/e2e/ferramentas.spec.ts`: começo sem cartelas; sorteador (bolas sem repetir pelo botão, Espaço e Enter, desfazer, reiniciar, sorteio salvo ao recarregar, globo de 90 e de outra quantidade até acabar, modo automático com pausa usando relógio controlado, modo telão em tela cheia, atalhos de teclado e marcação na partida em andamento); gerador (PDF aberto e conferido: páginas, título e textos; CSV com os mesmos números do PDF; números que não mudam ao trocar o título; Outros números; adicionar às minhas cartelas sem duplicar; jogos avulsos com colunas em ordem e sem espaço livre; aviso de números pequenos); sorteador, telão e gerador em 360px no tema escuro e no claro, sem rolagem lateral e com contraste conferido.
 
@@ -161,6 +178,9 @@ src/
   lib/cards.ts            cartelas e jogos da partida
   lib/drawer.ts           sorteio sem repetir, letras e voz do sorteador
   lib/ai.ts               leitura de cartelas por foto (API da Anthropic) e configuração da IA
+  lib/mqtt.ts             cliente MQTT mínimo sobre WebSocket
+  lib/broadcast.ts        transmissão do sorteio: código, assinatura e aplicação na partida
+  lib/useBroadcast.ts     conexões de quem transmite e de quem recebe
   lib/cardgen.ts          geração das cartelas e lista de conferência (CSV)
   lib/printLayout.ts      layout das folhas em milímetros (usado pelo PDF e pela prévia)
   lib/pdf.ts              desenho do PDF com o jsPDF
@@ -171,7 +191,7 @@ src/
   views/MatchView.tsx     tela da partida
   views/DrawerView.tsx    sorteador e modo telão
   views/GeneratorView.tsx gerador de cartelas em PDF
-  components/             grade de bingo, nome da cartela, configuração da partida, editor (com a leitura por foto), configuração da IA, campo numérico, prévia de impressão, diálogos, ícones
+  components/             grade de bingo, nome da cartela, configuração da partida, editor (com a leitura por foto), configuração da IA, campo numérico, QR code, prévia de impressão, diálogos, ícones
 public/                   manifesto, service worker e ícones do PWA
 tests/e2e/                testes de ponta a ponta e oráculo
 ```

@@ -15,6 +15,7 @@ export const DEFAULT_DRAWER_CONFIG: DrawerConfig = {
   voice: false,
   sound: true,
   syncMatch: false,
+  broadcast: false,
 };
 
 export const DEFAULT_GENERATOR_CONFIG: GeneratorConfig = {

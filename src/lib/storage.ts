@@ -48,7 +48,7 @@ export function initialState(): AppState {
     activeMatch: null,
     history: [],
     settings: { ...DEFAULT_SETTINGS },
-    drawer: { config: { ...DEFAULT_DRAWER_CONFIG }, draws: [] },
+    drawer: { config: { ...DEFAULT_DRAWER_CONFIG }, draws: [], round: 1 },
     generator: { ...DEFAULT_GENERATOR_CONFIG, gameNames: [...DEFAULT_GENERATOR_CONFIG.gameNames] },
   };
 }
@@ -142,6 +142,7 @@ function normalizeDrawerConfig(v: unknown): DrawerConfig {
     voice: bool(c.voice, d.voice),
     sound: bool(c.sound, d.sound),
     syncMatch: bool(c.syncMatch, d.syncMatch),
+    broadcast: bool(c.broadcast, d.broadcast),
   };
 }
 
@@ -151,7 +152,7 @@ function normalizeDrawer(v: unknown): DrawerState {
   const draws = Array.isArray(raw.draws)
     ? raw.draws.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= config.maxBall)
     : [];
-  return { config, draws: [...new Set(draws)] };
+  return { config, draws: [...new Set(draws)], round: intIn(raw.round, 1, Number.MAX_SAFE_INTEGER, 1) };
 }
 
 function normalizeGenerator(v: unknown): GeneratorConfig {

@@ -239,3 +239,13 @@ export const IconKey = (p: IconProps) => (
     <path d="M14 9l2 2" />
   </svg>
 );
+
+export const IconBroadcast = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="2" />
+    <path d="M8.5 15.5a5 5 0 010-7" />
+    <path d="M15.5 8.5a5 5 0 010 7" />
+    <path d="M5.6 18.4a9 9 0 010-12.8" />
+    <path d="M18.4 5.6a9 9 0 010 12.8" />
+  </svg>
+);

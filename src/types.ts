@@ -83,12 +83,16 @@ export interface DrawerConfig {
   sound: boolean;
   /** Marcar também cada número na partida em andamento. */
   syncMatch: boolean;
+  /** Transmitir as bolas para os celulares dos participantes. */
+  broadcast: boolean;
 }
 
 export interface DrawerState {
   config: DrawerConfig;
   /** Números sorteados, na ordem do sorteio. */
   draws: number[];
+  /** Muda a cada "Reiniciar", para quem recebe a transmissão separar um sorteio do outro. */
+  round: number;
 }
 
 /** Configurações do gerador de cartelas em PDF. */
