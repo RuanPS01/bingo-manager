@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FREE } from '../data/constants';
-import {
-  ScanError,
-  loadAiConfig,
-  modelLabel,
-  prepareImage,
-  readCardPhoto,
-  type AiConfig,
-  type ScanResult,
-} from '../lib/ai';
+import { describeSettings, loadAiSettings, type AiSettings as AiSettingsData } from '../lib/ai/models';
+import { ScanError, prepareImage, readCardPhoto, type ScanResult } from '../lib/ai/scan';
 import { LETTERS, columnRange, validateGrid } from '../lib/bingo';
 import { hasSameNumbers, parseGridText } from '../lib/cards';
 import { newId } from '../state';
@@ -299,8 +292,10 @@ export function CardEditor({ card, existingNumbers, onSave, onDelete, onClose, p
       {/* fora do Modal do editor: uma janela dentro da outra herdaria a animação e a posição dela */}
       {scan.settingsOpen && (
         <AiSettings
-          config={scan.config}
-          intro={scan.config ? undefined : 'Para ler a cartela pela foto, configure a chave da API e o modelo.'}
+          settings={scan.config}
+          intro={
+            scan.config ? undefined : 'Para ler a cartela pela foto, configure o provedor, o modelo e a chave da API.'
+          }
           onClose={scan.closeSettings}
           onSave={scan.settingsSaved}
         />
@@ -317,7 +312,7 @@ type ScanStatus =
 
 /** Estado da leitura por foto: configuração da IA, escolha da foto, envio e resultado. */
 function usePhotoScan(onResult: (result: ScanResult) => void) {
-  const [config, setConfig] = useState<AiConfig | null>(() => loadAiConfig());
+  const [config, setConfig] = useState<AiSettingsData | null>(() => loadAiSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [status, setStatus] = useState<ScanStatus>({ kind: 'idle' });
   const [preview, setPreview] = useState<string | null>(null);
@@ -335,7 +330,7 @@ function usePhotoScan(onResult: (result: ScanResult) => void) {
     else fileRef.current?.click();
   };
 
-  const read = async (file: File, cfg: AiConfig) => {
+  const read = async (file: File, cfg: AiSettingsData) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -380,7 +375,7 @@ function usePhotoScan(onResult: (result: ScanResult) => void) {
     },
     openSettings: () => setSettingsOpen(true),
     closeSettings: () => setSettingsOpen(false),
-    settingsSaved: (next: AiConfig | null) => {
+    settingsSaved: (next: AiSettingsData | null) => {
       const firstTime = !config;
       setConfig(next);
       setSettingsOpen(false);
@@ -405,7 +400,7 @@ function PhotoScanBox({ scan }: { scan: ReturnType<typeof usePhotoScan> }) {
           <strong>Ler pela foto com IA</strong>
           <span className="muted small">
             {scan.config
-              ? `Tire ou escolha uma foto da cartela. Usando ${modelLabel(scan.config.model)}.`
+              ? `Tire ou escolha uma foto da cartela. Usando ${describeSettings(scan.config)}.`
               : 'Tire ou escolha uma foto da cartela e a IA preenche os números.'}
           </span>
         </div>

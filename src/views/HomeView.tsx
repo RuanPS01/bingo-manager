@@ -20,7 +20,7 @@ import {
   IconTrophy,
 } from '../components/Icons';
 import { APP_NAME } from '../data/constants';
-import { loadAiConfig, modelLabel } from '../lib/ai';
+import { describeSettings, loadAiSettings } from '../lib/ai/models';
 import { cardLabel, hasSameNumbers, toMatchGame } from '../lib/cards';
 import { getMode } from '../data/modes';
 import { evaluateMatch, formatBall } from '../lib/bingo';
@@ -48,10 +48,10 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState<Card | 'new' | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiConfig, setAiConfig] = useState(() => loadAiConfig());
+  const [aiConfig, setAiConfig] = useState(() => loadAiSettings());
   // a configuração da IA também pode mudar pelo editor de cartela
   useEffect(() => {
-    if (!editing) setAiConfig(loadAiConfig());
+    if (!editing) setAiConfig(loadAiSettings());
   }, [editing]);
   const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -287,8 +287,8 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
               <span className="pref-label">Leitura de cartelas por foto (IA)</span>
               <p className="hint">
                 {aiConfig
-                  ? `Configurada com ${modelLabel(aiConfig.model)}. A chave fica só neste aparelho.`
-                  : 'Cadastre cartelas tirando uma foto. Precisa de uma chave da API da Anthropic.'}
+                  ? `Configurada com ${describeSettings(aiConfig)}. As chaves ficam só neste aparelho.`
+                  : 'Cadastre cartelas tirando uma foto. Precisa de uma chave de API (Claude, OpenAI ou Gemini) ou do Ollama no computador.'}
               </p>
             </div>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAiOpen(true)}>
@@ -331,7 +331,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
       {aiOpen && (
         <AiSettings
-          config={aiConfig}
+          settings={aiConfig}
           onClose={() => setAiOpen(false)}
           onSave={(next) => {
             setAiConfig(next);

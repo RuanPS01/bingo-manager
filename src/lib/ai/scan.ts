@@ -1,56 +1,22 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { FREE } from '../data/constants';
+import { FREE } from '../../data/constants';
+import type { AiSettings } from './models';
+import {
+  ContentError,
+  classify,
+  entryName,
+  isProviderError,
+  parseJsonObject,
+  providerMessage,
+  runCompletion,
+  withDeadline,
+  withRetries,
+} from './providers';
 
 /**
- * Leitura de cartelas por foto com a API da Anthropic.
- *
- * O app não tem servidor: a chamada sai direto do navegador, com a chave que a
- * própria pessoa cadastrou neste aparelho. A chave fica numa entrada separada do
- * localStorage para nunca entrar no backup nem no estado sincronizado entre abas.
+ * Leitura de cartelas por foto. A chamada passa pela fila de modelos configurada
+ * (principal e reservas, de qualquer um dos provedores) e o resultado ainda passa
+ * pela validação do editor: nada é salvo sem a pessoa conferir.
  */
-export const AI_STORAGE_KEY = 'bingo-manager:ia';
-
-export interface AiConfig {
-  apiKey: string;
-  model: string;
-}
-
-export const AI_MODELS = [
-  { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', hint: 'Recomendado: lê com mais precisão' },
-  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', hint: 'Mais rápido e mais barato' },
-  { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', hint: 'O mais rápido e o mais barato' },
-  { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', hint: 'O mais capaz, e o mais caro' },
-] as const;
-
-export const DEFAULT_AI_MODEL = AI_MODELS[0].id;
-
-export function modelLabel(id: string): string {
-  return AI_MODELS.find((m) => m.id === id)?.label ?? id;
-}
-
-export function loadAiConfig(): AiConfig | null {
-  try {
-    const raw = JSON.parse(localStorage.getItem(AI_STORAGE_KEY) ?? 'null') as Partial<AiConfig> | null;
-    if (!raw || typeof raw.apiKey !== 'string' || !raw.apiKey.trim()) return null;
-    const model = typeof raw.model === 'string' && raw.model.trim() ? raw.model.trim() : DEFAULT_AI_MODEL;
-    return { apiKey: raw.apiKey.trim(), model };
-  } catch {
-    return null;
-  }
-}
-
-export function saveAiConfig(config: AiConfig): void {
-  localStorage.setItem(AI_STORAGE_KEY, JSON.stringify({ apiKey: config.apiKey.trim(), model: config.model.trim() }));
-}
-
-export function clearAiConfig(): void {
-  localStorage.removeItem(AI_STORAGE_KEY);
-}
-
-/** Mostra só o começo e o fim da chave, para a pessoa saber qual está salva. */
-export function maskKey(key: string): string {
-  return key.length <= 12 ? '****' : `${key.slice(0, 7)}...${key.slice(-4)}`;
-}
 
 // ---------------------------------------------------------------- imagem
 
@@ -155,85 +121,49 @@ O que devolver:
 
 Ignore marcações feitas à mão por cima dos números (círculos, riscos, carimbos) e leia o número impresso. Não invente tabelas que não estão na foto. Se a foto não for de uma cartela de bingo, devolva a lista de jogos vazia e explique em avisos.`;
 
-const RESULT_SCHEMA = {
-  type: 'object',
-  properties: {
-    numero: { type: 'string' },
-    nome: { type: 'string' },
-    jogos: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          nome: { type: 'string' },
-          linhas: { type: 'array', items: { type: 'array', items: { type: 'integer' } } },
-        },
-        required: ['nome', 'linhas'],
-        additionalProperties: false,
-      },
-    },
-    avisos: { type: 'array', items: { type: 'string' } },
-  },
-  required: ['numero', 'nome', 'jogos', 'avisos'],
-  additionalProperties: false,
-} as const;
+/** Prazo da leitura inteira, com a fila de reservas e as repetições. */
+export const SCAN_DEADLINE_MS = 3 * 60_000;
+const MAX_TOKENS = 8000;
 
-/** Modelos conhecidos aceitam o ajuste de esforço; num ID digitado à mão ele fica de fora para não dar erro. */
-const KNOWN_MODELS: readonly string[] = AI_MODELS.map((m) => m.id);
+// O formato vai no fim do prompt, como texto: funciona igual nos quatro provedores,
+// sem depender do modo JSON de cada um.
+const FORMAT = `Responda APENAS com o objeto JSON, sem texto antes ou depois, neste formato:
+{"numero": "01062", "nome": "", "jogos": [{"nome": "Bicicleta", "linhas": [[6, 19, 41, 54, 69], [14, 21, 36, 46, 71], [13, 20, 0, 56, 62], [2, 29, 31, 60, 73], [8, 30, 44, 49, 72]]}], "avisos": []}`;
 
-/** Envia a foto e devolve os jogos lidos. Os números ainda passam pela validação do editor. */
-export async function readCardPhoto(image: PreparedImage, config: AiConfig, signal?: AbortSignal): Promise<ScanResult> {
-  // Sem servidor próprio, a chamada sai do navegador com a chave da própria pessoa.
-  const client = new Anthropic({ apiKey: config.apiKey, dangerouslyAllowBrowser: true, maxRetries: 1 });
-  let response: Anthropic.Beta.BetaMessage;
+/** Envia a foto pela fila de modelos e devolve os jogos lidos. */
+export async function readCardPhoto(
+  image: PreparedImage,
+  settings: AiSettings,
+  signal?: AbortSignal,
+): Promise<ScanResult> {
   try {
-    response = await client.beta.messages.create(
-      {
-        model: config.model,
-        max_tokens: 16000,
-        // Se o modelo recusar a foto por engano, o servidor tenta de novo em outro modelo.
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        system: SYSTEM_PROMPT,
-        output_config: {
-          format: { type: 'json_schema', schema: RESULT_SCHEMA },
-          ...(KNOWN_MODELS.includes(config.model) ? { effort: 'medium' as const } : {}),
-        },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
-              { type: 'text', text: 'Transcreva a cartela desta foto.' },
+    const raw = await withDeadline(
+      withRetries(
+        async () => {
+          const text = await runCompletion({
+            settings,
+            system: `${SYSTEM_PROMPT}\n\n${FORMAT}`,
+            messages: [
+              {
+                role: 'user',
+                content: 'Transcreva a cartela desta foto.',
+                images: [{ mediaType: image.mediaType, data: image.data }],
+              },
             ],
-          },
-        ],
-      },
-      { signal, timeout: 3 * 60 * 1000 },
+            maxTokens: MAX_TOKENS,
+            signal,
+          });
+          return parseJsonObject(text);
+        },
+        3,
+        signal,
+      ),
+      SCAN_DEADLINE_MS,
     );
+    return normalizeScan(raw);
   } catch (error) {
-    throw describeError(error);
+    throw describeError(error, signal);
   }
-
-  if (response.stop_reason === 'refusal') {
-    throw new ScanError('A IA não quis ler essa foto. Tente outra foto, só da cartela.');
-  }
-  if (response.stop_reason === 'max_tokens') {
-    throw new ScanError('A resposta da IA veio incompleta. Tente uma foto com menos tabelas de cada vez.');
-  }
-  // Depois de um bloco "fallback" vem a resposta do modelo que assumiu; o que veio antes é descartado.
-  let text = '';
-  for (const block of response.content) {
-    if (block.type === 'fallback') text = '';
-    else if (block.type === 'text') text += block.text;
-  }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw new ScanError('Não entendi a resposta da IA. Tente de novo.');
-  }
-  return normalizeScan(raw);
 }
 
 /** Converte a resposta da IA no formato do app, descartando tabelas que não têm 5 linhas de 5 números. */
@@ -259,29 +189,25 @@ export function normalizeScan(raw: unknown): ScanResult {
   return { number: str(obj.numero).replace(/^n[º°o.]*\s*/i, ''), name: str(obj.nome), games, warnings };
 }
 
-function describeError(error: unknown): ScanError {
+function describeError(error: unknown, signal?: AbortSignal): ScanError {
   if (error instanceof ScanError) return error;
-  if (error instanceof Anthropic.APIUserAbortError) return new ScanError('Leitura cancelada.');
-  if (error instanceof Anthropic.AuthenticationError) {
-    return new ScanError('A chave da API não foi aceita. Confira a chave nas configurações da IA.', true);
-  }
-  if (error instanceof Anthropic.PermissionDeniedError) {
-    return new ScanError('Esta chave não tem permissão para usar esse modelo.', true);
-  }
-  if (error instanceof Anthropic.NotFoundError) {
-    return new ScanError('Modelo não encontrado. Escolha outro modelo nas configurações da IA.', true);
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return new ScanError('Limite de uso da API atingido. Espere um pouco e tente de novo.');
-  }
-  if (error instanceof Anthropic.BadRequestError) {
-    return new ScanError(`A API recusou o pedido: ${error.message}`);
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return new ScanError('Sem conexão com a API. Confira a internet e tente de novo.');
-  }
-  if (error instanceof Anthropic.APIError) {
-    return new ScanError('A API da Anthropic está com problemas agora. Tente de novo em instantes.');
+  if (signal?.aborted) return new ScanError('Leitura cancelada.');
+  if (error instanceof ContentError) return new ScanError('Não entendi a resposta da IA. Tente de novo.');
+  if (isProviderError(error)) {
+    // todos os modelos falharam: o erro é o do primeiro, que diz o que houve com o principal
+    const who = error.entry ? `${entryName(error.entry)}: ` : '';
+    const detail = providerMessage(error);
+    if (error.timeout) return new ScanError('A IA demorou demais para responder. Tente de novo.');
+    switch (classify(error)) {
+      case 'credential':
+        return new ScanError(`A chave da API não foi aceita. ${who}${detail}`, true);
+      case 'missing-model':
+        return new ScanError(`Modelo não encontrado. Escolha outro nas configurações da IA. ${who}${detail}`, true);
+      case 'limit':
+        return new ScanError(`Limite de uso atingido em todos os modelos. Espere um pouco. ${who}${detail}`);
+      default:
+        return new ScanError(`A IA não conseguiu ler a foto. ${who}${detail}`);
+    }
   }
   return new ScanError('Não foi possível ler a foto. Tente de novo.');
 }
