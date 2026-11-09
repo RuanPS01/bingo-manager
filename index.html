@@ -7,18 +7,20 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="description" content="Acompanhamento das cartelas do Show de Prêmios APAE Santa Rita do Sapucaí 2026" />
-    <meta name="apple-mobile-web-app-title" content="Bingo APAE" />
+    <meta name="description" content="Bingo Manager: acompanhe cartelas, sorteie números e gere cartelas em PDF." />
+    <meta name="apple-mobile-web-app-title" content="Bingo Manager" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <title>Bingo APAE 2026</title>
+    <title>Bingo Manager</title>
     <script>
       // Aplica o tema salvo antes de a página aparecer, sem piscar em claro.
       (function () {
         try {
-          var salvo = JSON.parse(localStorage.getItem('bingo-apae-2026:v1') || '{}');
+          var salvo = JSON.parse(
+            localStorage.getItem('bingo-manager:v1') || localStorage.getItem('bingo-apae-2026:v1') || '{}',
+          );
           var tema = salvo && salvo.settings && salvo.settings.theme;
           if (tema !== 'light' && tema !== 'dark') {
             tema = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';

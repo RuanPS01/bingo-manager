@@ -1,35 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CARDS } from '../data/event';
+import { FREE } from '../data/constants';
 import { MODES, getMode } from '../data/modes';
 import type { MatchGame } from '../types';
+import { generateGrid } from './cardgen';
 import { drawPositions, evaluateMatch, evaluateMode, formatBall, letterFor, parseBall, validateGrid } from './bingo';
 
-const card = DEFAULT_CARDS.find((c) => c.number === '01065')!;
-const grid = card.games[0].grid;
+// grade de uma cartela real, em ordem de linha, usada como referência nos cenários abaixo
+// prettier-ignore
+const grid = [
+  9, 25, 39, 52, 69,
+  2, 30, 41, 51, 72,
+  3, 20, FREE, 50, 68,
+  8, 27, 31, 59, 62,
+  12, 17, 38, 60, 74,
+];
 const game: MatchGame = {
   key: 'k1',
-  cardId: card.id,
-  cardNumber: card.number,
-  cardName: card.name,
-  gameId: 'bicicleta',
-  prizeId: 'bicicleta',
-  gameName: 'Bicicleta Aro 26',
+  cardId: 'cartela-1',
+  cardNumber: '0001',
+  cardName: 'Ana',
+  gameId: 'jogo-1',
+  gameName: 'Rodada 1',
+  gameIndex: 1,
   grid,
 };
 
 const mode = (id: string) => getMode(id)!;
 const evalWith = (id: string, draws: number[]) => evaluateMode(grid, mode(id), drawPositions(draws));
 
-describe('cartelas padrão', () => {
-  it('respeitam as faixas de cada coluna e não repetem números', () => {
-    for (const c of DEFAULT_CARDS) {
-      expect(c.games.map((g) => g.prizeId)).toEqual(['bicicleta', 'smartphone', 'dinheiro', 'tv', 'moto']);
-      for (const g of c.games) {
-        expect(g.grid).toEqual(c.games[0].grid);
-        expect(g.grid).toHaveLength(25);
-        expect(g.grid[12]).toBe(0);
-        expect(validateGrid(g.grid).size).toBe(0);
-      }
+describe('grades', () => {
+  it('a grade de referência é válida', () => {
+    expect(validateGrid(grid).size).toBe(0);
+  });
+
+  it('as grades geradas passam na mesma validação usada no cadastro manual', () => {
+    for (let i = 0; i < 200; i++) {
+      expect(validateGrid(generateGrid({ freeCenter: true, sortColumns: i % 2 === 0 })).size).toBe(0);
     }
   });
 });
@@ -66,7 +72,7 @@ describe('modos', () => {
   });
 
   it('quina na linha do meio conta o espaço livre', () => {
-    // linha do meio da 01065: 03 20 [livre] 50 68
+    // linha do meio: 03 20 [livre] 50 68
     const r = evalWith('quina', [3, 20, 50]);
     expect(r.completedAt).toBeNull();
     expect(r.needed).toBe(1);

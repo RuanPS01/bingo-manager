@@ -1,4 +1,4 @@
-import type { AppState, Card, Match, MatchGame, Settings } from './types';
+import type { AppState, Card, DrawerConfig, GeneratorConfig, Match, MatchGame, Settings } from './types';
 
 export type Action =
   | { type: 'replace'; state: AppState }
@@ -15,7 +15,12 @@ export type Action =
   | { type: 'match/discard' }
   | { type: 'match/reopen'; id: string }
   | { type: 'history/remove'; id: string }
-  | { type: 'settings'; patch: Partial<Settings> };
+  | { type: 'settings'; patch: Partial<Settings> }
+  | { type: 'drawer/draw'; ball: number }
+  | { type: 'drawer/undo' }
+  | { type: 'drawer/reset' }
+  | { type: 'drawer/config'; patch: Partial<DrawerConfig> }
+  | { type: 'generator/config'; patch: Partial<GeneratorConfig> };
 
 export function newId(prefix: string): string {
   const rand = Math.random().toString(36).slice(2, 8);
@@ -47,7 +52,9 @@ export function reducer(state: AppState, action: Action): AppState {
             ...g,
             cardName: action.card.name,
             cardNumber: action.card.number,
-            ...(game ? { gameName: game.name, prizeId: game.prizeId, grid: [...game.grid] } : {}),
+            ...(game
+              ? { gameName: game.name, gameIndex: action.card.games.indexOf(game) + 1, grid: [...game.grid] }
+              : {}),
           };
         }),
       };
@@ -126,5 +133,43 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'settings':
       return { ...state, settings: { ...state.settings, ...action.patch } };
+
+    case 'drawer/draw': {
+      const { drawer } = state;
+      if (drawer.draws.includes(action.ball) || action.ball < 1 || action.ball > drawer.config.maxBall) return state;
+      const next = { ...state, drawer: { ...drawer, draws: [...drawer.draws, action.ball] } };
+      // Com a opção ligada, quem sorteia também acompanha as próprias cartelas sem digitar duas vezes.
+      return syncsWithMatch(state) ? reducer(next, { type: 'match/draw', ball: action.ball }) : next;
+    }
+
+    case 'drawer/undo': {
+      const last = state.drawer.draws[state.drawer.draws.length - 1];
+      if (last === undefined) return state;
+      const next = { ...state, drawer: { ...state.drawer, draws: state.drawer.draws.slice(0, -1) } };
+      return syncsWithMatch(state) ? reducer(next, { type: 'match/remove-ball', ball: last }) : next;
+    }
+
+    case 'drawer/reset':
+      return { ...state, drawer: { ...state.drawer, draws: [] } };
+
+    case 'drawer/config': {
+      const config = { ...state.drawer.config, ...action.patch };
+      // Mudar a quantidade de bolas no meio do sorteio deixaria números fora do globo.
+      const draws = state.drawer.draws.filter((n) => n <= config.maxBall);
+      return { ...state, drawer: { config, draws } };
+    }
+
+    case 'generator/config':
+      return { ...state, generator: { ...state.generator, ...action.patch } };
   }
+}
+
+/** O sorteador marca na partida só no bingo de 75 bolas, que é o das cartelas B I N G O. */
+export function syncsWithMatch(state: AppState): boolean {
+  return Boolean(
+    state.drawer.config.syncMatch &&
+    state.drawer.config.maxBall <= 75 &&
+    state.activeMatch &&
+    !state.activeMatch.finishedAt,
+  );
 }

@@ -54,3 +54,14 @@ export function vibrate(pattern: number | number[]) {
     // vibração não suportada
   }
 }
+
+/** Batida curta repetida durante a animação, como a bola girando no globo. */
+export function playTick() {
+  tone(260 + Math.random() * 120, 0, 0.05, 0.05);
+}
+
+/** Som da bola revelada no sorteador. */
+export function playReveal() {
+  tone(784, 0, 0.18, 0.14);
+  tone(1175, 0.12, 0.4, 0.14);
+}

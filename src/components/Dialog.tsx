@@ -20,7 +20,10 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', ton
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key !== 'Escape') return;
+      // Com uma janela aberta por cima de outra, o Esc fecha só a de cima.
+      const modals = document.querySelectorAll('.modal');
+      if (modals[modals.length - 1] === panelRef.current) onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;

@@ -10,8 +10,8 @@ export function toMatchGame(card: Card, game: CardGame): MatchGame {
     cardNumber: card.number,
     cardName: card.name,
     gameId: game.id,
-    prizeId: game.prizeId,
     gameName: game.name,
+    gameIndex: card.games.indexOf(game) + 1,
     grid: [...game.grid],
   };
 }

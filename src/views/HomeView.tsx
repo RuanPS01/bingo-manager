@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState, type Dispatch } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch } from 'react';
+import { AiSettings } from '../components/AiSettings';
 import { BingoGrid } from '../components/BingoGrid';
 import { CardEditor } from '../components/CardEditor';
 import { useConfirm } from '../components/Dialog';
@@ -11,13 +12,15 @@ import {
   IconFlag,
   IconGrid,
   IconInstall,
+  IconKey,
   IconMoon,
   IconPlus,
   IconSave,
   IconSun,
   IconTrophy,
 } from '../components/Icons';
-import { EVENT, roundOf } from '../data/event';
+import { APP_NAME } from '../data/constants';
+import { loadAiConfig, modelLabel } from '../lib/ai';
 import { cardLabel, hasSameNumbers, toMatchGame } from '../lib/cards';
 import { getMode } from '../data/modes';
 import { evaluateMatch, formatBall } from '../lib/bingo';
@@ -44,6 +47,12 @@ export function formatDateTime(ts: number): string {
 export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState<Card | 'new' | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiConfig, setAiConfig] = useState(() => loadAiConfig());
+  // a configuração da IA também pode mudar pelo editor de cartela
+  useEffect(() => {
+    if (!editing) setAiConfig(loadAiConfig());
+  }, [editing]);
   const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = state.activeMatch;
@@ -94,12 +103,9 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
     <div className="page">
       <header className="hero">
         <div className="hero-inner">
-          <p className="hero-kicker">{EVENT.organizer}</p>
-          <h1>{EVENT.title}</h1>
+          <h1>{APP_NAME}</h1>
           <p className="hero-meta">
-            <span>{EVENT.date}</span>
-            <span>{EVENT.time}</span>
-            <span>{EVENT.place}</span>
+            <span>Acompanhe suas cartelas, sorteie números e gere cartelas em PDF.</span>
           </p>
         </div>
       </header>
@@ -120,7 +126,11 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
           <section className="start-card">
             <div>
               <h2>Pronto para jogar?</h2>
-              <p>Escolha as cartelas, os jogos (prêmios) e os modos que estão valendo.</p>
+              <p>
+                {state.cards.length === 0
+                  ? 'Cadastre suas cartelas e acompanhe o jogo: os números são marcados em todas de uma vez.'
+                  : 'Escolha as cartelas, os jogos e os modos que estão valendo.'}
+              </p>
             </div>
             <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/nova-partida')}>
               <IconBall size={20} />
@@ -129,13 +139,33 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
           </section>
         )}
 
+        <section className="tools-grid" aria-label="Ferramentas">
+          <button type="button" className="tool-card" onClick={() => navigate('/sorteador')}>
+            <IconBall size={30} />
+            <span className="tool-text">
+              <strong>Sorteador</strong>
+              <span>Sorteie as bolas com animação e projete em tela cheia no telão.</span>
+            </span>
+            {state.drawer.draws.length > 0 && (
+              <span className="badge badge-gold">{state.drawer.draws.length} sorteadas</span>
+            )}
+          </button>
+          <button type="button" className="tool-card" onClick={() => navigate('/gerador')}>
+            <IconFile size={30} />
+            <span className="tool-text">
+              <strong>Gerador de cartelas</strong>
+              <span>Monte cartelas ou jogos avulsos e baixe em PDF para imprimir.</span>
+            </span>
+          </button>
+        </section>
+
         {!state.settings.hideInstallTip && (pwa.canInstall || pwa.showIosHint) && (
           <section className="install-card">
             <IconInstall size={28} />
             <div className="install-text">
               <strong>Instale o app no celular</strong>
               {pwa.canInstall ? (
-                <span>Abre em tela cheia e funciona mesmo sem internet no ginásio.</span>
+                <span>Abre em tela cheia e funciona mesmo sem internet.</span>
               ) : (
                 <span>
                   No iPhone ou iPad, toque no botão Compartilhar do Safari e escolha Adicionar à Tela de Início.
@@ -163,7 +193,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
         <section className="panel">
           <header className="panel-head">
             <div>
-              <h2>Cartelas disponíveis</h2>
+              <h2>Minhas cartelas</h2>
               <span className="muted small">{state.cards.length} cartela(s)</span>
             </div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing('new')}>
@@ -172,7 +202,9 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
             </button>
           </header>
 
-          {state.cards.length === 0 && <p className="empty">Nenhuma cartela cadastrada.</p>}
+          {state.cards.length === 0 && (
+            <p className="empty">Nenhuma cartela cadastrada. Toque em Adicionar cartela para cadastrar a primeira.</p>
+          )}
 
           <div className="card-list">
             {state.cards.map((card) => (
@@ -196,15 +228,12 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
                     {!hasSameNumbers(card) && <small className="muted small">Números do 1º jogo</small>}
                   </div>
                   <ul className="prize-list">
-                    {card.games.map((g) => {
-                      const round = roundOf(g.prizeId);
-                      return (
-                        <li key={g.id} className={round ? '' : 'is-custom'}>
-                          {round > 0 && <span className="chip-round">{round}</span>}
-                          {g.name}
-                        </li>
-                      );
-                    })}
+                    {card.games.map((g, i) => (
+                      <li key={g.id}>
+                        {card.games.length > 1 && <span className="chip-round">{i + 1}</span>}
+                        {g.name}
+                      </li>
+                    ))}
                   </ul>
                 </div>
                 <div className="card-item-foot">
@@ -219,7 +248,7 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
 
           <button type="button" className="add-tile" onClick={() => setEditing('new')}>
             <IconPlus size={20} />
-            Adicionar cartela ou jogo avulso
+            Adicionar cartela
           </button>
         </section>
 
@@ -253,6 +282,20 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
             </div>
           </div>
           <p className="hint">Automático segue o tema do celular ou do computador.</p>
+          <div className="pref-row ai-status">
+            <div>
+              <span className="pref-label">Leitura de cartelas por foto (IA)</span>
+              <p className="hint">
+                {aiConfig
+                  ? `Configurada com ${modelLabel(aiConfig.model)}. A chave fica só neste aparelho.`
+                  : 'Cadastre cartelas tirando uma foto. Precisa de uma chave da API da Anthropic.'}
+              </p>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAiOpen(true)}>
+              <IconKey size={16} />
+              {aiConfig ? 'Alterar' : 'Configurar'}
+            </button>
+          </div>
           <p className="hint">
             Tudo fica salvo automaticamente neste navegador. Use o backup para levar os dados para outro aparelho.
           </p>
@@ -285,6 +328,18 @@ export function HomeView({ state, dispatch, navigate }: HomeViewProps) {
           </div>
         </section>
       </main>
+
+      {aiOpen && (
+        <AiSettings
+          config={aiConfig}
+          onClose={() => setAiOpen(false)}
+          onSave={(next) => {
+            setAiConfig(next);
+            setAiOpen(false);
+            setNotice(next ? 'Leitura por foto configurada.' : 'Chave da IA removida deste aparelho.');
+          }}
+        />
+      )}
 
       {editing && (
         <CardEditor

@@ -1,4 +1,4 @@
-import { FREE } from '../data/event';
+import { FREE } from '../data/constants';
 import { LETTERS, pad2 } from '../lib/bingo';
 import { IconStar } from './Icons';
 

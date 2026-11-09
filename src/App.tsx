@@ -9,6 +9,8 @@ import { useTheme } from './lib/useTheme';
 import { reducer } from './state';
 import type { Card, Match } from './types';
 import { HomeView } from './views/HomeView';
+import { DrawerView } from './views/DrawerView';
+import { GeneratorView } from './views/GeneratorView';
 import { MatchView } from './views/MatchView';
 
 function readRoute(): string {
@@ -46,7 +48,7 @@ function cardsForEditing(cards: Card[], match: Match): Card[] {
   for (const g of match.games) {
     if (known.has(g.cardId)) continue;
     const card = extra.get(g.cardId) ?? { id: g.cardId, number: g.cardNumber, name: g.cardName, games: [] };
-    card.games.push({ id: g.gameId, prizeId: g.prizeId, name: g.gameName, grid: g.grid });
+    card.games.push({ id: g.gameId, name: g.gameName, grid: g.grid });
     extra.set(g.cardId, card);
   }
   return [...cards, ...extra.values()];
@@ -175,6 +177,10 @@ export default function App() {
         navigate={navigate}
       />
     );
+  } else if (route === '/sorteador') {
+    content = <DrawerView state={state} dispatch={dispatch} navigate={navigate} />;
+  } else if (route === '/gerador') {
+    content = <GeneratorView state={state} dispatch={dispatch} navigate={navigate} />;
   } else {
     content = <HomeView state={state} dispatch={dispatch} navigate={navigate} />;
   }

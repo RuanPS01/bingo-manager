@@ -18,7 +18,6 @@ import {
   IconTrash,
   IconTrophy,
 } from '../components/Icons';
-import { roundOf } from '../data/event';
 import { CardEditor } from '../components/CardEditor';
 import { toMatchGame } from '../lib/cards';
 import { getMode } from '../data/modes';
@@ -728,7 +727,7 @@ export function MatchView({ match, cards, theme, readOnly, settings, canReopen, 
             <>
               <button type="button" className="btn btn-secondary" onClick={() => setAdding(true)}>
                 <IconPlus size={18} />
-                Adicionar cartela ou jogo
+                Adicionar cartela
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => navigate('/partida/editar')}>
                 <IconEdit size={18} />
@@ -777,7 +776,7 @@ interface GameCardProps {
 
 function GameCard({ result, lastBall, draws, compact = false }: GameCardProps) {
   const { game, modes, marked } = result;
-  const round = roundOf(game.prizeId);
+  const round = game.gameIndex;
   const won = modes.filter((m) => m.completedAt !== null);
   const winCells = new Set(won.flatMap((m) => m.winningCells ?? []));
   const targets = new Set(modes.flatMap((m) => m.oneAway));
@@ -837,7 +836,7 @@ function GameCard({ result, lastBall, draws, compact = false }: GameCardProps) {
   return (
     <article className={`game-card ${status}`} data-game={game.key} data-marked={marked.size}>
       <header className="game-card-head">
-        <span className={`prize-tag ${round ? '' : 'is-custom'}`}>
+        <span className="prize-tag">
           {round > 0 && <span className="chip-round">{round}</span>}
           {game.gameName}
         </span>

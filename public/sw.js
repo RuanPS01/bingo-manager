@@ -1,11 +1,11 @@
 /*
- * Service worker do Bingo APAE 2026.
+ * Service worker do Bingo Manager.
  *
  * Página (index.html): busca na rede primeiro para receber atualizações e guarda
  * uma cópia. Sem internet, ou se a rede demorar, usa a cópia guardada.
  * Demais arquivos (ícones e manifesto): usa a cópia guardada e atualiza em segundo plano.
  */
-const CACHE = 'bingo-apae-v1';
+const CACHE = 'bingo-manager-v1';
 const SHELL = [
   './',
   './index.html',

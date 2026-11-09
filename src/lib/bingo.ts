@@ -1,4 +1,4 @@
-import { FREE } from '../data/event';
+import { FREE } from '../data/constants';
 import { getMode, type BingoMode } from '../data/modes';
 import type { Grid, Match, MatchGame } from '../types';
 

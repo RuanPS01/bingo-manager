@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { PRIZES, roundOf } from '../data/event';
 import { MODES, MODE_GROUPS, DEFAULT_MODE_IDS } from '../data/modes';
 import { cardLabel, gameKey, hasSameNumbers, toMatchGame } from '../lib/cards';
 import type { Card, MatchGame } from '../types';
@@ -24,17 +23,13 @@ interface MatchSetupProps {
 
 /** Nome sugerido para a partida a partir dos jogos escolhidos. */
 export function suggestName(games: MatchGame[]): string {
-  const unique = [...new Map(games.map((g) => [g.prizeId ?? `avulso:${g.gameName}`, g])).values()];
-  if (unique.length === 0) return 'Partida';
-  if (unique.length === 1) {
-    const round = roundOf(unique[0].prizeId);
-    return round ? `${round}ª rodada: ${unique[0].gameName}` : unique[0].gameName;
-  }
-  return unique
-    .sort((a, b) => (roundOf(a.prizeId) || 99) - (roundOf(b.prizeId) || 99))
-    .map((g) => g.gameName)
-    .join(' + ');
+  const names = [...new Set(games.map((g) => g.gameName.trim()).filter(Boolean))];
+  if (names.length === 0) return 'Partida';
+  return names.join(' + ');
 }
+
+/** Normaliza o nome do jogo para agrupar "Rodada 1" e "rodada 1 " como o mesmo jogo. */
+const nameKey = (name: string) => name.trim().toLocaleLowerCase('pt-BR');
 
 export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }: MatchSetupProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initial?.games.map((g) => g.key) ?? []));
@@ -80,15 +75,24 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }
       return next;
     });
 
-  const roundKeys = (prizeId: string) =>
-    cards.flatMap((c) => c.games.filter((g) => g.prizeId === prizeId).map((g) => gameKey(c.id, g.id)));
+  // Atalho por nome de jogo: o mesmo jogo (ex.: "Rodada 1") em todas as cartelas que o têm.
+  const gameNames = useMemo(() => {
+    const byKey = new Map<string, { label: string; keys: string[]; cards: Set<string> }>();
+    for (const c of cards) {
+      for (const g of c.games) {
+        const k = nameKey(g.name);
+        if (!k) continue;
+        const entry = byKey.get(k) ?? { label: g.name.trim(), keys: [], cards: new Set<string>() };
+        entry.keys.push(gameKey(c.id, g.id));
+        entry.cards.add(c.id);
+        byKey.set(k, entry);
+      }
+    }
+    return [...byKey.values()];
+  }, [cards]);
 
-  const selectRound = (prizeId: string) => setSelected(new Set(roundKeys(prizeId)));
-
-  const roundActive = (prizeId: string) => {
-    const keys = roundKeys(prizeId);
-    return keys.length > 0 && keys.length === selected.size && keys.every((k) => selected.has(k));
-  };
+  const shortcutActive = (keys: string[]) =>
+    keys.length > 0 && keys.length === selected.size && keys.every((k) => selected.has(k));
 
   const toggleMode = (id: string) =>
     setModeIds((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
@@ -115,24 +119,29 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }
           </div>
         </header>
 
-        <p className="hint">Atalho: escolha a rodada para usar o mesmo jogo em todas as cartelas.</p>
-        <div className="round-picker">
-          {PRIZES.map((p) => (
-            <button
-              type="button"
-              key={p.id}
-              className={`round-btn ${roundActive(p.id) ? 'is-on' : ''}`}
-              aria-pressed={roundActive(p.id)}
-              onClick={() => selectRound(p.id)}
-              disabled={roundKeys(p.id).length === 0}
-            >
-              <span className="round-num">{p.round}ª rodada</span>
-              <span className="round-name">{p.name}</span>
-            </button>
-          ))}
-        </div>
+        {gameNames.length > 0 && (
+          <>
+            <p className="hint">Atalho: escolha um jogo para usar o jogo com esse nome em todas as cartelas.</p>
+            <div className="round-picker" role="group" aria-label="Atalho por jogo">
+              {gameNames.map((g) => (
+                <button
+                  type="button"
+                  key={g.label}
+                  className={`round-btn ${shortcutActive(g.keys) ? 'is-on' : ''}`}
+                  aria-pressed={shortcutActive(g.keys)}
+                  onClick={() => setSelected(new Set(g.keys))}
+                >
+                  <span className="round-num">{g.cards.size} cartela(s)</span>
+                  <span className="round-name">{g.label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
-        {cards.length === 0 && <p className="empty">Nenhuma cartela cadastrada ainda.</p>}
+        {cards.length === 0 && (
+          <p className="empty">Nenhuma cartela cadastrada ainda. Use o botão abaixo para cadastrar a primeira.</p>
+        )}
 
         <div className="setup-cards">
           {cards.map((card) => {
@@ -170,10 +179,9 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }
                     {!hasSameNumbers(card) && <small className="muted small">Números do 1º jogo</small>}
                   </div>
                   <div className="game-toggles">
-                    {card.games.map((g) => {
+                    {card.games.map((g, i) => {
                       const key = gameKey(card.id, g.id);
                       const on = selected.has(key);
-                      const round = roundOf(g.prizeId);
                       return (
                         <button
                           type="button"
@@ -182,7 +190,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }
                           aria-pressed={on}
                           onClick={() => toggleGame(key)}
                         >
-                          {round > 0 && <span className="chip-round">{round}</span>}
+                          {card.games.length > 1 && <span className="chip-round">{i + 1}</span>}
                           {g.name}
                         </button>
                       );
@@ -196,7 +204,7 @@ export function MatchSetup({ cards, initial, submitLabel, onSubmit, onSaveCard }
 
         <button type="button" className="add-tile" onClick={() => setAdding(true)}>
           <IconPlus size={20} />
-          Adicionar cartela ou jogo avulso
+          Adicionar cartela
         </button>
       </section>
 
