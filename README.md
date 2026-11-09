@@ -158,6 +158,7 @@ A pipeline fica em `.github/workflows/`:
 
 - `testes.yml`: roda em todo pull request, com dois jobs em paralelo. **Tipos, unitários e fluxos** confere formatação, tipos, testes unitários e os testes de ponta a ponta dos fluxos, do sorteador, do gerador, da leitura por foto e da transmissão. **Simulação de 60 partidas** roda a simulação completa.
 - `deploy.yml`: roda a cada merge (push) na `main`. Executa só os testes rápidos (a simulação já passou no pull request) e, se tudo passar, gera o build e publica no GitHub Pages.
+- Prazos e novas tentativas (`playwright.config.ts`): cada teste de fluxo tem até 2 minutos (levam segundos), e a simulação, até 10. No CI, um teste de fluxo que falha é rodado mais uma vez: o Chromium sem tela às vezes para de desenhar quadros no meio de um teste, e isso não pode barrar a publicação. Falha repetida continua reprovando, e o relatório marca o teste como instável (flaky). A simulação não é repetida.
 
 Para ativar uma única vez: no GitHub, abra **Settings > Pages** e em **Build and deployment > Source** escolha **GitHub Actions**.
 
