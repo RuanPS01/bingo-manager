@@ -14,6 +14,10 @@ import {
   rng,
 } from './oracle';
 
+// 20 partidas por cartela levam alguns minutos. Sem nova tentativa: repetir a simulação
+// inteira dobraria o tempo do job, e uma falha aqui é sempre para olhar.
+test.describe.configure({ timeout: 10 * 60 * 1000, retries: 0 });
+
 /**
  * Simulação de 20 partidas para cada cartela, usando o campo de número como
  * um usuário faria. A cada número sorteado o resultado do app é comparado com
